@@ -3,6 +3,7 @@
 """
 from typing import Dict, Any, Optional
 from datetime import datetime
+import bcrypt
 
 from ml_service.models.base.entity import Entity
 from ml_service.models.base.user_role import UserRole
@@ -18,7 +19,6 @@ class User(Entity):
         email: str, 
         password_hash: str, 
         role: UserRole = None, 
-        balance: int = 0, 
         id: str = None
     ):
         super().__init__(id)
@@ -26,7 +26,6 @@ class User(Entity):
         self._email = email
         self._password_hash = password_hash
         self._role = role if role else RegularUserRole()
-        self._balance = balance
         self._is_active = True
         self._last_login = None
 
@@ -37,10 +36,6 @@ class User(Entity):
     @property
     def email(self) -> str:
         return self._email
-
-    @property
-    def balance(self) -> int:
-        return self._balance
 
     @property
     def is_active(self) -> bool:
@@ -54,9 +49,25 @@ class User(Entity):
     def role(self) -> UserRole:
         return self._role
 
+    @staticmethod
+    def hash_password(password: str) -> str:
+        """
+        Хеширует пароль с использованием bcrypt.
+        
+        Args:
+            password: Пароль для хеширования
+            
+        Returns:
+            Хеш пароля в виде строки
+        """
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
+
     def verify_password(self, password: str) -> bool:
         """
-        Проверить пароль пользователя.
+        Проверить пароль пользователя с использованием bcrypt.
         
         Args:
             password: Пароль для проверки
@@ -64,9 +75,9 @@ class User(Entity):
         Returns:
             True если пароль верный, иначе False
         """
-        # В реальной системе здесь будет проверка хеша пароля
-        # Это заглушка для примера
-        return True
+        password_bytes = password.encode('utf-8')
+        hashed_bytes = self._password_hash.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
 
     def has_permission(self, permission: str) -> bool:
         """
@@ -79,40 +90,6 @@ class User(Entity):
             True если разрешение есть у роли пользователя, иначе False
         """
         return self._role.has_permission(permission)
-
-    def top_up_balance(self, amount: int) -> bool:
-        """
-        Пополнить баланс пользователя.
-        
-        Args:
-            amount: Сумма пополнения в кредитах
-            
-        Returns:
-            True если операция успешна, иначе False
-        """
-        if amount <= 0:
-            return False
-        
-        self._balance += amount
-        self.update()
-        return True
-
-    def withdraw_balance(self, amount: int) -> bool:
-        """
-        Списать с баланса пользователя.
-        
-        Args:
-            amount: Сумма списания в кредитах
-            
-        Returns:
-            True если операция успешна, иначе False
-        """
-        if amount <= 0 or self._balance < amount:
-            return False
-        
-        self._balance -= amount
-        self.update()
-        return True
 
     def set_role(self, role: UserRole) -> None:
         """
@@ -151,7 +128,6 @@ class User(Entity):
             'username': self._username,
             'email': self._email,
             'role': self._role.__class__.__name__,
-            'balance': self._balance,
             'is_active': self._is_active,
             'last_login': self._last_login.isoformat() if self._last_login else None,
             'created_at': self.created_at.isoformat(),

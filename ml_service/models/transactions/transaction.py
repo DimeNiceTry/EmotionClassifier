@@ -16,9 +16,9 @@ class Transaction(Entity):
         user_id: str, 
         amount: int, 
         transaction_type: TransactionType,
-        status: TransactionStatus = TransactionStatus.PENDING,
+        status: TransactionStatus = TransactionStatus.COMPLETED,
         description: str = None,
-        related_entity_id: str = None,  # Например, ID задачи ML или администратора
+        related_entity_id: str = None,  # Например, ID задачи ML
         id: str = None
     ):
         super().__init__(id)
@@ -28,8 +28,7 @@ class Transaction(Entity):
         self._status = status
         self._description = description
         self._related_entity_id = related_entity_id
-        self._completed_at = None
-        self._error_message = None
+        self._completed_at = datetime.now()
 
     @property
     def user_id(self) -> str:
@@ -56,18 +55,8 @@ class Transaction(Entity):
         return self._related_entity_id
 
     @property
-    def completed_at(self) -> Optional[datetime]:
+    def completed_at(self) -> datetime:
         return self._completed_at
-
-    @property
-    def error_message(self) -> Optional[str]:
-        return self._error_message
-
-    def mark_as_completed(self) -> None:
-        """Отметить транзакцию как успешно завершенную."""
-        self._status = TransactionStatus.COMPLETED
-        self._completed_at = datetime.now()
-        self.update()
 
     def mark_as_failed(self, error_message: str) -> None:
         """
@@ -77,20 +66,6 @@ class Transaction(Entity):
             error_message: Сообщение об ошибке
         """
         self._status = TransactionStatus.FAILED
-        self._error_message = error_message
-        self._completed_at = datetime.now()
-        self.update()
-
-    def cancel(self, reason: str = None) -> None:
-        """
-        Отменить транзакцию.
-        
-        Args:
-            reason: Причина отмены
-        """
-        self._status = TransactionStatus.CANCELLED
-        self._error_message = reason
-        self._completed_at = datetime.now()
         self.update()
 
     def to_dict(self) -> Dict[str, Any]:
@@ -108,8 +83,7 @@ class Transaction(Entity):
             'status': self._status.value,
             'description': self._description,
             'related_entity_id': self._related_entity_id,
-            'completed_at': self._completed_at.isoformat() if self._completed_at else None,
-            'error_message': self._error_message,
+            'completed_at': self._completed_at.isoformat(),
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         } 
