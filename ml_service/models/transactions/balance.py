@@ -3,12 +3,20 @@
 """
 from typing import Dict, Any
 from datetime import datetime
+from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy.orm import relationship
 
 from ml_service.models.base.entity import Entity
 
 
 class Balance(Entity):
     """Модель баланса пользователя."""
+    
+    user_id = Column(String, ForeignKey("user.id"), unique=True, nullable=False)
+    amount = Column(Integer, default=0, nullable=False)
+    
+    # Отношение к пользователю (один-к-одному)
+    user = relationship("User", back_populates="balance")
 
     def __init__(
         self, 
@@ -17,16 +25,8 @@ class Balance(Entity):
         id: str = None
     ):
         super().__init__(id)
-        self._user_id = user_id
-        self._amount = amount
-
-    @property
-    def user_id(self) -> str:
-        return self._user_id
-
-    @property
-    def amount(self) -> int:
-        return self._amount
+        self.user_id = user_id
+        self.amount = amount
 
     def top_up(self, amount: int) -> bool:
         """
@@ -41,7 +41,7 @@ class Balance(Entity):
         if amount <= 0:
             return False
         
-        self._amount += amount
+        self.amount += amount
         self.update()
         return True
 
@@ -55,10 +55,10 @@ class Balance(Entity):
         Returns:
             True если операция успешна, иначе False
         """
-        if amount <= 0 or self._amount < amount:
+        if amount <= 0 or self.amount < amount:
             return False
         
-        self._amount -= amount
+        self.amount -= amount
         self.update()
         return True
 
@@ -71,8 +71,8 @@ class Balance(Entity):
         """
         return {
             'id': self.id,
-            'user_id': self._user_id,
-            'amount': self._amount,
+            'user_id': self.user_id,
+            'amount': self.amount,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         } 
