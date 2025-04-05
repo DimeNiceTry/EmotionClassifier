@@ -1,7 +1,6 @@
 """
-Пакет для работы с транзакциями и балансом пользователей.
+Модели транзакций в системе.
 """
 from ml_service.models.transactions.transaction import Transaction
 from ml_service.models.transactions.transaction_types import TransactionType, TransactionStatus
-from ml_service.models.transactions.balance import Balance
-from ml_service.models.transactions.transaction_manager import TransactionManager 
+from ml_service.models.transactions.balance import Balance 

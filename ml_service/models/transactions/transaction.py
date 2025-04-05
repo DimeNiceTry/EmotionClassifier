@@ -3,8 +3,6 @@
 """
 from typing import Dict, Any, Optional
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Enum
-from sqlalchemy.orm import relationship
 
 from ml_service.models.base.entity import Entity
 from ml_service.models.transactions.transaction_types import TransactionType, TransactionStatus
@@ -12,17 +10,6 @@ from ml_service.models.transactions.transaction_types import TransactionType, Tr
 
 class Transaction(Entity):
     """Модель транзакции по счету пользователя."""
-    
-    user_id = Column(String, ForeignKey("user.id"), nullable=False)
-    amount = Column(Integer, nullable=False)
-    transaction_type = Column(Enum(TransactionType), nullable=False)
-    status = Column(Enum(TransactionStatus), nullable=False, default=TransactionStatus.COMPLETED)
-    description = Column(String, nullable=True)
-    related_entity_id = Column(String, nullable=True)
-    completed_at = Column(DateTime, nullable=False, default=datetime.now)
-    
-    # Отношение к пользователю (многие-к-одному)
-    user = relationship("User", back_populates="transactions")
 
     def __init__(
         self, 
@@ -35,13 +22,41 @@ class Transaction(Entity):
         id: str = None
     ):
         super().__init__(id)
-        self.user_id = user_id
-        self.amount = amount
-        self.transaction_type = transaction_type
-        self.status = status
-        self.description = description
-        self.related_entity_id = related_entity_id
-        self.completed_at = datetime.now()
+        self._user_id = user_id
+        self._amount = amount
+        self._transaction_type = transaction_type
+        self._status = status
+        self._description = description
+        self._related_entity_id = related_entity_id
+        self._completed_at = datetime.now()
+
+    @property
+    def user_id(self) -> str:
+        return self._user_id
+
+    @property
+    def amount(self) -> int:
+        return self._amount
+
+    @property
+    def transaction_type(self) -> TransactionType:
+        return self._transaction_type
+
+    @property
+    def status(self) -> TransactionStatus:
+        return self._status
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def related_entity_id(self) -> Optional[str]:
+        return self._related_entity_id
+
+    @property
+    def completed_at(self) -> datetime:
+        return self._completed_at
 
     def mark_as_failed(self, error_message: str) -> None:
         """
@@ -50,8 +65,7 @@ class Transaction(Entity):
         Args:
             error_message: Сообщение об ошибке
         """
-        self.status = TransactionStatus.FAILED
-        self.description = error_message if not self.description else f"{self.description}; {error_message}"
+        self._status = TransactionStatus.FAILED
         self.update()
 
     def to_dict(self) -> Dict[str, Any]:
@@ -63,13 +77,13 @@ class Transaction(Entity):
         """
         return {
             'id': self.id,
-            'user_id': self.user_id,
-            'amount': self.amount,
-            'transaction_type': self.transaction_type.value,
-            'status': self.status.value,
-            'description': self.description,
-            'related_entity_id': self.related_entity_id,
-            'completed_at': self.completed_at.isoformat(),
+            'user_id': self._user_id,
+            'amount': self._amount,
+            'transaction_type': self._transaction_type.value,
+            'status': self._status.value,
+            'description': self._description,
+            'related_entity_id': self._related_entity_id,
+            'completed_at': self._completed_at.isoformat(),
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         } 
