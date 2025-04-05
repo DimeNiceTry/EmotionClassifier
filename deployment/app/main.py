@@ -11,7 +11,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ml_service")
 
-# Создание экземпляра приложения
 app = FastAPI(title="ML Service API", version="0.1.0")
 
 @app.get("/")
@@ -25,7 +24,6 @@ async def health_check() -> Dict[str, str]:
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    # Получение параметров из переменных окружения
     host = os.getenv("APP_HOST", "0.0.0.0")
     port = int(os.getenv("APP_PORT", "8080"))
     

@@ -3,11 +3,11 @@ version: "3.8"
 services:
   app:
     build: ./app/
-    image: ml-service-api:latest
+    image: ml-service-api:1.0
     container_name: ml-service-api
     restart: unless-stopped
     env_file:
-      - ./app/.env
+      - ./app/.env.template
     volumes:
       - ./app:/app
       - ../ml_service:/app/ml_service
@@ -24,7 +24,7 @@ services:
       - rabbitmq
 
   web-proxy:
-    image: nginx:latest
+    image: nginx:1.25.3
     container_name: ml-service-nginx
     restart: unless-stopped
     ports:
@@ -41,14 +41,14 @@ services:
       - ml-service-network
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3.12-management
     container_name: ml-service-rabbitmq
-    restart: always
+    restart: unless-stopped
     ports:
       - "15672:15672"  # Порт для веб-интерфейса
       - "5672:5672"    # Порт для AMQP
     volumes:
-      - ./data/rabbitmq:/var/lib/rabbitmq
+      - rabbitmq_volume:/var/lib/rabbitmq
     networks:
       - ml-service-network
     environment:
@@ -56,7 +56,7 @@ services:
       - RABBITMQ_DEFAULT_PASS=guest
 
   database:
-    image: postgres:14
+    image: postgres:14.10
     container_name: ml-service-postgres
     restart: unless-stopped
     ports:
@@ -66,11 +66,15 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_volume:/var/lib/postgresql/data
     networks:
       - ml-service-network
 
 networks:
   ml-service-network:
     name: ml-service-network
-    driver: bridge 
+    driver: bridge
+
+volumes:
+  postgres_volume:
+  rabbitmq_volume: 
