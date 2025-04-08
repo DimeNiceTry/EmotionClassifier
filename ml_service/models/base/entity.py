@@ -5,28 +5,33 @@ from abc import ABC
 from datetime import datetime
 import uuid
 from typing import Dict, Any
+from sqlalchemy import Column, String, DateTime
+from sqlalchemy.ext.declarative import declared_attr
+
+from ml_service.db_config import Base
 
 
-class Entity(ABC):
+class Entity(Base):
     """Базовый абстрактный класс для всех сущностей системы."""
+    
+    __abstract__ = True
+    
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower()
+    
+    id = Column(String, primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     def __init__(self, id: str = None):
-        self._id = id if id else str(uuid.uuid4())
-        self._created_at = datetime.now()
-        self._updated_at = datetime.now()
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def created_at(self) -> datetime:
-        return self._created_at
-
-    @property
-    def updated_at(self) -> datetime:
-        return self._updated_at
+        if id:
+            self.id = id
+        else:
+            self.id = str(uuid.uuid4())
+        self.created_at = datetime.now()
+        self.updated_at = datetime.now()
 
     def update(self) -> None:
         """Обновить временную метку последнего изменения."""
-        self._updated_at = datetime.now() 
+        self.updated_at = datetime.now() 
