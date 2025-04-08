@@ -4,6 +4,8 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 import bcrypt
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
 
 from ml_service.models.base.entity import Entity
 from ml_service.models.base.user_role import UserRole
@@ -12,6 +14,19 @@ from ml_service.models.users.roles import RegularUserRole
 
 class User(Entity):
     """Модель пользователя системы."""
+    
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    role_name = Column(String, default="RegularUserRole", nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    last_login = Column(DateTime, nullable=True)
+    
+    # Отношение к балансу (один-к-одному)
+    balance = relationship("Balance", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    
+    # Отношение к транзакциям (один-ко-многим)
+    transactions = relationship("Transaction", back_populates="user", cascade="all, delete-orphan")
 
     def __init__(
         self, 
@@ -22,28 +37,13 @@ class User(Entity):
         id: str = None
     ):
         super().__init__(id)
-        self._username = username
-        self._email = email
-        self._password_hash = password_hash
+        self.username = username
+        self.email = email
+        self.password_hash = password_hash
+        self.role_name = role.__class__.__name__ if role else RegularUserRole().__class__.__name__
+        self.is_active = True
+        self.last_login = None
         self._role = role if role else RegularUserRole()
-        self._is_active = True
-        self._last_login = None
-
-    @property
-    def username(self) -> str:
-        return self._username
-
-    @property
-    def email(self) -> str:
-        return self._email
-
-    @property
-    def is_active(self) -> bool:
-        return self._is_active
-
-    @property
-    def last_login(self) -> Optional[datetime]:
-        return self._last_login
 
     @property
     def role(self) -> UserRole:
@@ -76,7 +76,7 @@ class User(Entity):
             True если пароль верный, иначе False
         """
         password_bytes = password.encode('utf-8')
-        hashed_bytes = self._password_hash.encode('utf-8')
+        hashed_bytes = self.password_hash.encode('utf-8')
         return bcrypt.checkpw(password_bytes, hashed_bytes)
 
     def has_permission(self, permission: str) -> bool:
@@ -99,21 +99,22 @@ class User(Entity):
             role: Новая роль пользователя
         """
         self._role = role
+        self.role_name = role.__class__.__name__
         self.update()
 
     def record_login(self) -> None:
         """Записать время последнего входа в систему."""
-        self._last_login = datetime.now()
+        self.last_login = datetime.now()
         self.update()
 
     def activate(self) -> None:
         """Активировать учетную запись пользователя."""
-        self._is_active = True
+        self.is_active = True
         self.update()
 
     def deactivate(self) -> None:
         """Деактивировать учетную запись пользователя."""
-        self._is_active = False
+        self.is_active = False
         self.update()
         
     def to_dict(self) -> Dict[str, Any]:
@@ -125,11 +126,11 @@ class User(Entity):
         """
         return {
             'id': self.id,
-            'username': self._username,
-            'email': self._email,
-            'role': self._role.__class__.__name__,
-            'is_active': self._is_active,
-            'last_login': self._last_login.isoformat() if self._last_login else None,
+            'username': self.username,
+            'email': self.email,
+            'role': self.role_name,
+            'is_active': self.is_active,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         } 
