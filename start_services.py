@@ -8,6 +8,7 @@ import sys
 import os
 import time
 import logging
+import argparse
 from dotenv import load_dotenv
 
 # Настройка логирования
@@ -77,21 +78,70 @@ def run_telegram_bot():
         logger.error(f"Ошибка при запуске Telegram-бота: {e}")
         return None
 
+def run_ml_workers(num_workers=3):
+    """Запуск ML воркеров"""
+    try:
+        logger.info(f"Запуск {num_workers} ML воркеров...")
+        
+        # Путь к скрипту запуска воркеров
+        workers_script = os.path.join(os.getcwd(), "ml_service", "rabbitmq", "run_workers.py")
+        
+        # Запускаем менеджер воркеров
+        workers_process = subprocess.Popen(
+            [sys.executable, workers_script, "--workers", str(num_workers)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        # Читаем и выводим логи воркеров
+        for line in workers_process.stdout:
+            logger.info(f"Workers: {line.strip()}")
+            
+        # Если процесс завершился, выводим ошибки
+        for line in workers_process.stderr:
+            logger.error(f"Workers ERROR: {line.strip()}")
+            
+        return workers_process
+    except Exception as e:
+        logger.error(f"Ошибка при запуске ML воркеров: {e}")
+        return None
+
 def main():
     """Основная функция запуска всех сервисов"""
+    parser = argparse.ArgumentParser(description='Запуск ML Service')
+    parser.add_argument('--workers', type=int, default=3, help='Количество ML воркеров (по умолчанию 3)')
+    parser.add_argument('--no-bot', action='store_true', help='Не запускать Telegram-бота')
+    parser.add_argument('--no-workers', action='store_true', help='Не запускать ML воркеров')
+    args = parser.parse_args()
+    
     try:
         # Запускаем API в отдельном потоке
         api_thread = threading.Thread(target=run_api)
         api_thread.daemon = True
         api_thread.start()
         
-        # Запускаем бота в основном потоке
-        bot_process = run_telegram_bot()
+        # Даем API время на запуск
+        time.sleep(3)
         
-        # Ждем завершения работы
+        processes = []
+        
+        # Запускаем воркеров, если требуется
+        if not args.no_workers:
+            workers_process = run_ml_workers(args.workers)
+            if workers_process:
+                processes.append(workers_process)
+        
+        # Запускаем бота, если требуется
+        if not args.no_bot:
+            bot_process = run_telegram_bot()
+            if bot_process:
+                processes.append(bot_process)
+        
+        # Ожидаем завершения работы
         api_thread.join()
-        if bot_process:
-            bot_process.wait()
+        for process in processes:
+            process.wait()
             
     except KeyboardInterrupt:
         logger.info("Завершение работы по команде пользователя...")

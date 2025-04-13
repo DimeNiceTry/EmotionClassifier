@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 import random
 import json
 from pathlib import Path
+import sys
+import asyncio
 
 # Настройка логирования
 logging.basicConfig(
@@ -53,12 +55,36 @@ async def api_predict(input_data: dict) -> dict:
     """Выполняет запрос к API предсказаний"""
     try:
         async with httpx.AsyncClient(base_url=API_BASE_URL, timeout=30.0) as client:
+            # Отправляем задачу
             response = await client.post("/predictions/predict", json={"data": input_data})
-            if response.status_code == 200:
-                return response.json()
-            else:
+            if response.status_code != 200:
                 logger.error(f"Ошибка API: {response.status_code} - {response.text}")
                 return {"error": f"Ошибка API: {response.status_code}"}
+            
+            # Получаем данные о задаче
+            prediction_data = response.json()
+            prediction_id = prediction_data.get("prediction_id")
+            
+            if not prediction_id:
+                return {"error": "Не удалось получить ID предсказания"}
+                
+            # Проверяем статус до 10 раз
+            for _ in range(10):
+                # Ждем немного перед проверкой
+                await asyncio.sleep(1)
+                
+                # Проверяем статус задачи
+                status_response = await client.get(f"/predictions/status/{prediction_id}")
+                if status_response.status_code != 200:
+                    continue
+                    
+                status_data = status_response.json()
+                # Если задача завершена, возвращаем результат
+                if status_data.get("status") == "completed":
+                    return status_data
+            
+            # Если после 10 попыток нет результата, возвращаем что доступно
+            return prediction_data
     except Exception as e:
         logger.error(f"Ошибка при обращении к API: {e}")
         return {"error": f"Ошибка соединения: {str(e)}"}
@@ -340,15 +366,19 @@ async def make_prediction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Создаем данные для предсказания
         input_data = {"text": input_text}
         
-        # Отправляем запрос в API
-        await update.message.reply_text("🔄 Обрабатываю запрос...")
+        # Отправляем запрос в API и сообщаем пользователю
+        status_message = await update.message.reply_text("🔄 Отправляю запрос в очередь обработки...")
         
-        # Пытаемся получить настоящее предсказание от API
+        # Отправляем запрос в API (теперь это отправит задачу в RabbitMQ)
         api_result = await api_predict(input_data)
         
         if "error" in api_result:
             # Если API недоступен, генерируем случайное предсказание
             logger.warning(f"Ошибка API, использую локальное предсказание: {api_result}")
+            
+            # Обновляем сообщение
+            await status_message.edit_text("⚠️ Ошибка API, использую локальное предсказание...")
+            
             predictions = [
                 ("Да, это произойдет в ближайшее время", 0.85),
                 ("Нет, этого не случится", 0.75),
@@ -359,20 +389,33 @@ async def make_prediction(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             prediction_text, confidence = random.choice(predictions)
             result = {"prediction": prediction_text, "confidence": confidence}
+            worker_id = "local"
         else:
             # Используем результат от API
             logger.info(f"Получен ответ от API: {api_result}")
-            # Адаптируем результат API к нашему формату
-            if isinstance(api_result, dict) and "result" in api_result:
-                if isinstance(api_result["result"], dict):
-                    prediction_text = str(api_result["result"].get("prediction", "Неопределенное предсказание"))
-                    confidence = float(api_result["result"].get("confidence", 0.5))
-                else:
-                    prediction_text = str(api_result["result"])
-                    confidence = 0.7  # Значение по умолчанию, если API не вернуло значение confidence
+            
+            # Проверяем, завершена ли задача
+            if api_result.get("status") == "completed":
+                await status_message.edit_text("✅ Задача обработана! Получаю результат...")
             else:
-                prediction_text = "Некорректный ответ API"
+                await status_message.edit_text("⏳ Задача находится в обработке, но время ожидания истекло")
+            
+            # Извлекаем результат
+            if "result" in api_result and isinstance(api_result["result"], dict):
+                result_data = api_result["result"].get("result", {})
+                if isinstance(result_data, dict):
+                    prediction_text = str(result_data.get("prediction", "Неопределенное предсказание"))
+                    confidence = float(result_data.get("confidence", 0.5))
+                    worker_id = result_data.get("worker_id", "unknown")
+                else:
+                    prediction_text = "Некорректный формат результата"
+                    confidence = 0.5
+                    worker_id = "unknown"
+            else:
+                prediction_text = "Ожидание результата"
                 confidence = 0.5
+                worker_id = "pending"
+                
             result = {"prediction": prediction_text, "confidence": confidence}
     
     except Exception as e:
@@ -385,6 +428,7 @@ async def make_prediction(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         prediction_text, confidence = random.choice(predictions)
         result = {"prediction": prediction_text, "confidence": confidence}
+        worker_id = "error"
     
     # Создаем предсказание с результатом в JSON формате
     prediction = Prediction(
@@ -413,9 +457,11 @@ async def make_prediction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     session.commit()
     
+    # Отправляем результат пользователю
     await update.message.reply_text(
         f"🔮 Предсказание: {result['prediction']}\n"
         f"📊 Уверенность: {result['confidence']*100:.1f}%\n"
+        f"🤖 Обработано воркером: {worker_id}\n"
         f"💰 С вашего баланса списано {PREDICTION_COST} руб.\n"
         f"💳 Остаток на балансе: {user.balance} руб."
     )
