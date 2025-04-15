@@ -1,8 +1,6 @@
 import os
 import logging
-from typing import Dict
-import uvicorn
-from fastapi import FastAPI
+from ml_service.api.main import app
 
 # Настройка логгирования
 logging.basicConfig(
@@ -11,21 +9,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ml_service")
 
-app = FastAPI(title="ML Service API", version="0.1.0")
-
-@app.get("/")
-async def root() -> Dict[str, str]:
-    """Корневой эндпоинт."""
-    return {"message": "ML Service API is up and running"}
-
-@app.get("/health")
-async def health_check() -> Dict[str, str]:
-    """Эндпоинт для проверки работоспособности."""
-    return {"status": "healthy"}
-
 if __name__ == "__main__":
+    import uvicorn
+    
     host = os.getenv("APP_HOST", "0.0.0.0")
     port = int(os.getenv("APP_PORT", "8080"))
     
     logger.info(f"Starting ML Service API at {host}:{port}")
-    uvicorn.run(app, host=host, port=port) 
+    uvicorn.run("ml_service.api.main:app", host=host, port=port) 

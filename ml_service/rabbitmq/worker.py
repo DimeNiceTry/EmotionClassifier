@@ -10,6 +10,7 @@ from typing import Dict, Any
 import random
 from datetime import datetime
 import pika
+import socket
 
 # Добавляем корневой каталог в путь для импорта
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -24,6 +25,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Генерируем уникальный идентификатор воркера
+WORKER_ID = os.getenv("WORKER_ID", f"worker-{socket.gethostname()}-{random.randint(1000, 9999)}")
 
 # Стоимость задачи
 PREDICTION_COST = 1.0
@@ -100,7 +104,7 @@ def make_ml_prediction(input_data: Dict[str, Any]) -> Dict[str, Any]:
     # Добавляем дополнительную информацию в результат
     result["timestamp"] = datetime.now().isoformat()
     result["input_length"] = len(input_text)
-    result["worker_id"] = os.getenv("WORKER_ID", f"worker-{random.randint(1000, 9999)}")
+    result["worker_id"] = WORKER_ID
     
     return {"result": result}
 
@@ -139,7 +143,7 @@ def save_prediction_result(user_id: int, input_data: Dict[str, Any], prediction_
             balance.amount -= PREDICTION_COST
         
         db.commit()
-        logger.info(f"Результат предсказания сохранен для пользователя {user_id}")
+        logger.info(f"Результат предсказания сохранен для пользователя {user_id} (воркер: {WORKER_ID})")
     except Exception as e:
         db.rollback()
         logger.error(f"Ошибка при сохранении результата: {e}")
@@ -159,11 +163,11 @@ def process_message(ch, method, properties, body):
     try:
         # Декодируем сообщение
         message = json.loads(body.decode('utf-8'))
-        logger.info(f"Получено сообщение: {message}")
+        logger.info(f"Воркер {WORKER_ID} получил сообщение: {message}")
         
         # Валидируем данные
         if not validate_data(message):
-            logger.error("Сообщение не прошло валидацию")
+            logger.error(f"Воркер {WORKER_ID}: сообщение не прошло валидацию")
             # Подтверждаем получение сообщения, даже если оно некорректное
             ch.basic_ack(delivery_tag=method.delivery_tag)
             return
@@ -173,6 +177,7 @@ def process_message(ch, method, properties, body):
         input_data = message["input_data"]
         
         # Выполняем предсказание
+        logger.info(f"Воркер {WORKER_ID}: начинаем обработку задачи для пользователя {user_id}")
         prediction_result = make_ml_prediction(input_data)
         
         # Сохраняем результат в базу данных
@@ -180,9 +185,9 @@ def process_message(ch, method, properties, body):
         
         # Подтверждаем обработку сообщения
         ch.basic_ack(delivery_tag=method.delivery_tag)
-        logger.info("Сообщение обработано успешно")
+        logger.info(f"Воркер {WORKER_ID}: задача успешно обработана")
     except Exception as e:
-        logger.error(f"Ошибка при обработке сообщения: {e}")
+        logger.error(f"Воркер {WORKER_ID}: ошибка при обработке сообщения: {e}")
         # В случае ошибки, все равно подтверждаем сообщение, чтобы не зацикливаться
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -190,12 +195,20 @@ def run_worker():
     """
     Запускает воркер для обработки ML задач
     """
-    logger.info("Запуск ML воркера...")
-    worker_id = os.getenv("WORKER_ID", f"worker-{random.randint(1000, 9999)}")
-    logger.info(f"Идентификатор воркера: {worker_id}")
+    logger.info(f"Запуск ML воркера с идентификатором: {WORKER_ID}")
     
-    # Запускаем потребление сообщений
-    consume_messages(process_message, ML_TASK_QUEUE)
+    # Бесконечный цикл для переподключения при ошибках
+    while True:
+        try:
+            # Запускаем потребление сообщений
+            logger.info(f"Воркер {WORKER_ID} подключается к RabbitMQ...")
+            consume_messages(process_message, ML_TASK_QUEUE)
+        except pika.exceptions.AMQPConnectionError:
+            logger.error(f"Воркер {WORKER_ID}: ошибка подключения к RabbitMQ. Повторная попытка через 5 секунд...")
+            time.sleep(5)
+        except Exception as e:
+            logger.error(f"Воркер {WORKER_ID}: непредвиденная ошибка: {e}. Повторная попытка через 10 секунд...")
+            time.sleep(10)
 
 if __name__ == "__main__":
     run_worker() 

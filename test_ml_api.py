@@ -46,6 +46,9 @@ def register_user(username: str, password: str, email: str) -> bool:
     
     try:
         response = requests.post(url, params=params)
+        logger.info(f"Статус ответа: {response.status_code}")
+        logger.info(f"Содержимое ответа: {response.text}")
+        
         if response.status_code == 201 or response.status_code == 200:
             logger.info(f"Пользователь {username} успешно зарегистрирован")
             return True
@@ -111,7 +114,7 @@ def make_prediction(token, text):
         text: Текст для анализа
         
     Returns:
-        dict: Информация о задаче предсказания
+        int: ID задачи предсказания или None в случае ошибки
     """
     url = f"{API_BASE_URL}/predictions/predict"
     headers = {
@@ -127,31 +130,35 @@ def make_prediction(token, text):
     response = requests.post(url, headers=headers, json=data)
     if response.status_code == 200:
         prediction_data = response.json()
-        return prediction_data
+        return prediction_data["prediction_id"]
     else:
         print(f"Ошибка отправки задачи: {response.status_code} - {response.text}")
         return None
 
 def check_prediction_status(token, prediction_id):
     """
-    Проверка статуса задачи предсказания
+    Проверка статуса предсказания
     
     Args:
         token: Токен доступа
-        prediction_id: ID задачи предсказания
+        prediction_id: ID предсказания для проверки
         
     Returns:
-        dict: Статус и результат задачи
+        dict: Информация о предсказании или None в случае ошибки
     """
-    url = f"{API_BASE_URL}/predictions/status/{prediction_id}"
-    headers = {"Authorization": f"Bearer {token}"}
+    url = f"{API_BASE_URL}/predictions/{prediction_id}"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
     
     response = requests.get(url, headers=headers)
+    print(f"Статус проверки предсказания: {response.status_code}")
+    print(f"Ответ: {response.text}")
+    
     if response.status_code == 200:
-        status_data = response.json()
-        return status_data
+        return response.json()
     else:
-        print(f"Ошибка проверки статуса: {response.status_code} - {response.text}")
+        print(f"Ошибка получения статуса: {response.status_code} - {response.text}")
         return None
 
 def get_predictions_history(token):
@@ -175,6 +182,36 @@ def get_predictions_history(token):
         print(f"Ошибка получения истории: {response.status_code} - {response.text}")
         return None
 
+def deposit_funds(token: str, amount: float) -> bool:
+    """
+    Пополнение баланса пользователя
+    
+    Args:
+        token: Токен доступа
+        amount: Сумма для пополнения
+        
+    Returns:
+        bool: True в случае успеха, иначе False
+    """
+    url = f"{API_BASE_URL}/users/deposit"
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {"amount": amount}
+    
+    try:
+        response = requests.post(url, headers=headers, params=params)
+        logger.info(f"Статус ответа депозита: {response.status_code}")
+        logger.info(f"Содержимое ответа депозита: {response.text}")
+        
+        if response.status_code == 200:
+            logger.info(f"Баланс успешно пополнен на {amount}")
+            return True
+        else:
+            logger.error(f"Ошибка пополнения баланса: {response.status_code} - {response.text}")
+            return False
+    except Exception as e:
+        logger.error(f"Исключение при пополнении баланса: {e}")
+        return False
+
 def main():
     """Основная функция"""
     parser = argparse.ArgumentParser(description='Тестирование ML API')
@@ -184,6 +221,7 @@ def main():
     parser.add_argument('--count', type=int, default=5, help='Количество запросов (по умолчанию 5)')
     parser.add_argument('--register', action='store_true', help='Зарегистрировать нового пользователя')
     parser.add_argument('--email', help='Email для регистрации нового пользователя')
+    parser.add_argument('--deposit', type=float, default=10.0, help='Сумма для пополнения баланса')
     args = parser.parse_args()
     
     # Регистрация пользователя, если указан флаг --register
@@ -203,6 +241,18 @@ def main():
     if not token:
         print("Не удалось авторизоваться. Проверьте имя пользователя и пароль.")
         return
+    
+    # Пополняем баланс пользователя
+    if args.deposit > 0:
+        if deposit_funds(token, args.deposit):
+            print(f"Баланс пополнен на {args.deposit}")
+        else:
+            print("Ошибка при пополнении баланса")
+    
+    # Проверяем текущий баланс
+    balance = get_balance(token)
+    if balance is not None:
+        print(f"Текущий баланс: {balance}")
     
     # Отправка запросов на получение предсказаний
     prediction_ids = []
