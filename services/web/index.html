@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Сервис</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ML Сервис</h1>
+            <nav id="main-nav">
+                <ul>
+                    <li><a href="#" id="nav-home" class="active">Главная</a></li>
+                    <li><a href="#" id="nav-predict">Предсказание</a></li>
+                    <li><a href="#" id="nav-history">История</a></li>
+                    <li><a href="#" id="nav-balance">Баланс</a></li>
+                </ul>
+            </nav>
+            <div class="user-menu">
+                <div id="user-info" class="hidden">
+                    <span id="username"></span>
+                    <a href="#" id="logout-btn">Выйти</a>
+                </div>
+                <div id="auth-buttons">
+                    <button id="login-nav-btn" class="btn">Войти</button>
+                    <button id="register-nav-btn" class="btn btn-primary">Регистрация</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- Секция приветствия -->
+            <section id="home-section" class="section active">
+                <div class="welcome-message">
+                    <h2>Добро пожаловать в ML Сервис</h2>
+                    <p>Наш сервис предоставляет доступ к ML-моделям через удобный интерфейс</p>
+                    <div class="features">
+                        <div class="feature">
+                            <h3>Машинное обучение</h3>
+                            <p>Доступ к предобученным моделям для различных задач</p>
+                        </div>
+                        <div class="feature">
+                            <h3>Быстрая обработка</h3>
+                            <p>Быстрое выполнение предсказаний через очереди сообщений</p>
+                        </div>
+                        <div class="feature">
+                            <h3>История предсказаний</h3>
+                            <p>Сохранение и удобный доступ к истории ваших предсказаний</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Секция предсказания -->
+            <section id="predict-section" class="section">
+                <h2>Сделать предсказание</h2>
+                <div class="card">
+                    <form id="prediction-form">
+                        <div class="form-group">
+                            <label for="prediction-text">Введите текст для предсказания:</label>
+                            <textarea id="prediction-text" rows="6" placeholder="Введите текст для анализа..."></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Отправить</button>
+                            <div class="cost-info">
+                                <p>Стоимость: <span id="prediction-cost">1.0</span> кредитов</p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div id="prediction-result" class="hidden card">
+                    <h3>Результат предсказания</h3>
+                    <div id="result-content"></div>
+                </div>
+            </section>
+
+            <!-- Секция истории -->
+            <section id="history-section" class="section">
+                <h2>История предсказаний</h2>
+                <div class="card">
+                    <div id="history-list">
+                        <div class="loading">Загрузка...</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Секция баланса -->
+            <section id="balance-section" class="section">
+                <h2>Баланс</h2>
+                <div class="card">
+                    <div class="balance-info">
+                        <p>Текущий баланс: <span id="current-balance">0.00</span> кредитов</p>
+                    </div>
+                    <div class="balance-actions">
+                        <h3>Пополнение баланса</h3>
+                        <form id="topup-form">
+                            <div class="form-group">
+                                <label for="topup-amount">Сумма пополнения:</label>
+                                <input type="number" id="topup-amount" min="1" step="1" value="10" required>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Пополнить</button>
+                            </div>
+                        </form>
+                        <div id="topup-result" class="hidden">
+                            <div class="success-message">
+                                <p>Баланс успешно пополнен!</p>
+                                <p>Предыдущий баланс: <span id="previous-balance">0.00</span> кредитов</p>
+                                <p>Текущий баланс: <span id="new-balance">0.00</span> кредитов</p>
+                            </div>
+                        </div>
+                        <div id="topup-error" class="error hidden"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Модальное окно для входа -->
+            <div id="login-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Вход в систему</h2>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="login-username">Имя пользователя:</label>
+                            <input type="text" id="login-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Пароль:</label>
+                            <input type="password" id="login-password" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Войти</button>
+                        </div>
+                        <div id="login-error" class="error hidden"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Модальное окно для регистрации -->
+            <div id="register-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Регистрация</h2>
+                    <form id="register-form">
+                        <div class="form-group">
+                            <label for="register-username">Имя пользователя:</label>
+                            <input type="text" id="register-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-email">Email:</label>
+                            <input type="email" id="register-email">
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password">Пароль:</label>
+                            <input type="password" id="register-password" required>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                        </div>
+                        <div id="register-error" class="error hidden"></div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; Чернышов Дмитрий</p>
+        </footer>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 

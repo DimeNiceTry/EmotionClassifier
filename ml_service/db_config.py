@@ -1,18 +1,26 @@
 """
 Конфигурация и инициализация базы данных.
 """
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-# База данных SQLite, хранится в файле ml_service.db
-DATABASE_URL = "sqlite:///ml_service.db"
+# Настройки базы данных PostgreSQL
+DB_HOST = os.getenv("DB_HOST", "database")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "ml_service")
+DB_USER = os.getenv("DB_USER", "postgres")
+DB_PASS = os.getenv("DB_PASS", "postgres")
+
+# Формируем строку подключения
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # Создаем движок базы данных
 engine = create_engine(
-    DATABASE_URL, 
-    connect_args={"check_same_thread": False}, # Это нужно только для SQLite
-    echo=False, # Установите True для отладки SQL запросов
+    DATABASE_URL,
+    pool_pre_ping=True,  # проверяет соединение перед использованием
+    echo=False,  # установите True для отладки SQL запросов
 )
 
 # Создаем базовый класс для наших моделей
@@ -43,4 +51,5 @@ def init_db():
     """
     Создает все таблицы в базе данных.
     """
+    from ml_service.models import Base
     Base.metadata.create_all(bind=engine) 
