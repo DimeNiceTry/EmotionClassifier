@@ -2,8 +2,8 @@
 Сервис для работы с пользователями.
 """
 import logging
-from services.app.app.services.db_service import get_db_connection
-from services.app.app.models.user import User
+from app.services.db_service import get_db_connection
+from app.models.user import User
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

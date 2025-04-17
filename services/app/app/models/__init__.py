@@ -1,13 +1,13 @@
 """
 Модели Pydantic для API.
 """
-from services.app.app.models.user import (
+from app.models.user import (
     Token, TokenData, User, UserInDB, UserCreate
 )
-from services.app.app.models.prediction import (
+from app.models.prediction import (
     PredictionRequest, PredictionResponse, PredictionHistory
 )
-from services.app.app.models.transaction import (
+from app.models.transaction import (
     BalanceTopUpRequest, BalanceTopUpResponse, BalanceResponse
 )
 
