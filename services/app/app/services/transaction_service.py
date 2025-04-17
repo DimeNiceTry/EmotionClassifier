@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from services.app.app.services.db_service import get_db_connection
+from app.services.db_service import get_db_connection
 from ml_service.db_config import SessionLocal
 from ml_service.models.transaction import Transaction
 from ml_service.models.balance import Balance

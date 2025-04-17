@@ -2,10 +2,14 @@
 Конфигурация приложения.
 """
 import os
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     """Настройки приложения."""
+    # Настройки приложения
+    APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")
+    APP_PORT: int = int(os.getenv("APP_PORT", "8000"))
+    
     # Настройки базы данных
     DB_HOST: str = os.getenv("DB_HOST", "database")
     DB_PORT: int = int(os.getenv("DB_PORT", "5432"))

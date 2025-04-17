@@ -6,8 +6,8 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from services.app.app.services import init_db, wait_for_rabbitmq
-from services.app.app.routers import user_router, prediction_router, transaction_router
+from app.services import init_db, wait_for_rabbitmq
+from app.routers import user_router, prediction_router, transaction_router
 
 # Настройка логирования
 logging.basicConfig(
