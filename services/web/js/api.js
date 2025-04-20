@@ -1,5 +1,5 @@
 // API URL
-const API_URL = '';
+const API_URL = 'http://localhost:8000';
 
 /**
  * Выполняет HTTP запрос к API
@@ -112,7 +112,7 @@ const AuthAPI = {
         formData.append('password', password);
 
         try {
-            const response = await fetch(`${API_URL}/token`, {
+            const response = await fetch(`${API_URL}/api/token`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,7 +167,13 @@ const AuthAPI = {
             data.email = email;
         }
 
-        return await fetchAPI('/users', 'POST', data, false);
+        // Попробуем сначала один путь, а если не сработает, то другой
+        try {
+            return await fetchAPI('/api/register', 'POST', data, false);
+        } catch (error) {
+            console.log('Попытка регистрации через альтернативный путь...');
+            return await fetchAPI('/api/users', 'POST', data, false);
+        }
     },
 
     /**
@@ -175,7 +181,7 @@ const AuthAPI = {
      * @returns {Promise<Object>} - Информация о пользователе
      */
     async getCurrentUser() {
-        return await fetchAPI('/users/me', 'GET');
+        return await fetchAPI('/api/users/me', 'GET');
     }
 };
 
@@ -194,7 +200,7 @@ const PredictionAPI = {
         };
         console.log('Отправляем данные для предсказания:', data);
         try {
-            const result = await fetchAPI('/predictions/predict', 'POST', data);
+            const result = await fetchAPI('/api/predictions/predict', 'POST', data);
             console.log('Получен ответ от сервера:', result);
             return result;
         } catch (error) {
@@ -220,7 +226,7 @@ const PredictionAPI = {
         while (retries < maxRetries) {
             try {
                 console.log(`Запрос статуса предсказания ${id} (попытка ${retries + 1}/${maxRetries})`);
-                const result = await fetchAPI(`/predictions/${id}`, 'GET');
+                const result = await fetchAPI(`/api/predictions/${id}`, 'GET');
                 console.log(`Получен статус предсказания ${id}:`, result);
                 return result;
             } catch (error) {
@@ -251,8 +257,8 @@ const PredictionAPI = {
         while (retries < maxRetries) {
             try {
                 console.log(`Запрос истории предсказаний (попытка ${retries + 1}/${maxRetries})`);
-                const result = await fetchAPI('/predictions', 'GET');
-                console.log(`Получена история предсказаний:`, result);
+                const result = await fetchAPI('/api/predictions/', 'GET');
+                console.log('История предсказаний:', result);
                 return result;
             } catch (error) {
                 retries++;
@@ -280,7 +286,7 @@ const BalanceAPI = {
      * @returns {Promise<Object>} - Текущий баланс
      */
     async getBalance() {
-        return await fetchAPI('/balance', 'GET');
+        return await fetchAPI('/api/balance/', 'GET');
     },
     
     /**
@@ -290,6 +296,6 @@ const BalanceAPI = {
      */
     async topUpBalance(amount) {
         const data = { amount: parseFloat(amount) };
-        return await fetchAPI('/balance/topup', 'POST', data);
+        return await fetchAPI('/api/balance/topup', 'POST', data);
     }
-}; 
+};

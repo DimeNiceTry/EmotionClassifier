@@ -2,13 +2,14 @@
 Сервис для работы с пользователями.
 """
 import logging
-import uuid
+import bcrypt
+from typing import Optional, List
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import Optional
 
-from ml_service.models.users.user import User
-from ml_service.models.transactions.balance import Balance
+from ml_service.models.user import User
+from ml_service.models.balance import Balance
 from app.schemas.users import UserCreate
 
 # Настройка логирования
@@ -43,13 +44,14 @@ def create_user(db: Session, user_data: UserCreate):
                 raise ValueError("Пользователь с таким email уже существует")
         
         # Хешируем пароль
-        hashed_password = User.hash_password(user_data.password)
+        salt = bcrypt.gensalt()
+        hashed_password = bcrypt.hashpw(user_data.password.encode('utf-8'), salt).decode('utf-8')
         
         # Создаем нового пользователя
         user = User(
             username=user_data.username,
             email=user_data.email or f"{user_data.username}@example.com",
-            password_hash=hashed_password
+            password=hashed_password
         )
         
         # Добавляем пользователя в базу данных
@@ -134,8 +136,13 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     """
     user = get_user_by_username(db, username)
     if not user:
+        logger.warning(f"Пользователь с именем {username} не найден при попытке входа")
         return None
-    # В реальном приложении нужно проверять хеш пароля
-    if user.password != password:
+    
+    # Проверяем пароль с помощью метода verify_password
+    if not user.verify_password(password):
+        logger.warning(f"Неверный пароль для пользователя {username}")
         return None
+    
+    logger.info(f"Успешная аутентификация пользователя {username}")
     return user 

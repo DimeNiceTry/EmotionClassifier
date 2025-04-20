@@ -2,22 +2,26 @@
 Сервис для аутентификации и авторизации пользователей.
 """
 import logging
-from datetime import datetime, timedelta
+import bcrypt
+import jwt
 from typing import Optional
+from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import InvalidTokenError
 from sqlalchemy.orm import Session
-import jwt
+
+from ml_service.models.user import User
+from app.core.config import settings
+from app.db.session import get_db
 
 from app.config.settings import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_DELTA
-from app.services.db import get_db
-from ml_service.models.users.user import User
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
 # Настройка OAuth2
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

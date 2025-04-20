@@ -5,7 +5,7 @@ from ml_service.models.base import Base
 from ml_service.models.user import User
 from ml_service.models.balance import Balance 
 from ml_service.models.prediction import Prediction
-from ml_service.models.transaction import Transaction
+from ml_service.models.transaction import Transaction, TransactionType, TransactionStatus
 
 # Обновляем отношения между моделями
 from sqlalchemy.orm import relationship
@@ -19,5 +19,7 @@ __all__ = [
     "User",
     "Balance",
     "Prediction",
-    "Transaction"
+    "Transaction",
+    "TransactionType",
+    "TransactionStatus"
 ] 

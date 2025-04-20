@@ -9,9 +9,10 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 
 from app.config.settings import PREDICTION_COST
-from app.services.rabbitmq import publish_message, ML_TASK_QUEUE
+from app.services.rabbitmq import publish_message
+from app.core.config import settings
 from app.services.transactions import deduct_from_balance
-from ml_service.models.transactions.prediction import Prediction
+from ml_service.models.prediction import Prediction
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

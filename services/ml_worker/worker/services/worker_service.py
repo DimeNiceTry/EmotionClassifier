@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 from ml_service.db_config import SessionLocal
 from ml_service.models import Prediction
-from services.ml_worker.worker.services.message_processor import process_message
-from services.ml_worker.worker.services.rabbitmq_service import wait_for_rabbitmq
+from worker.services.message_processor import process_message
+from worker.services.rabbitmq_service import wait_for_rabbitmq
 
 # Настройки RabbitMQ
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")

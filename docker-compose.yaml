@@ -63,12 +63,13 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  # Сервис ML Worker (масштабируемый)
+  # Сервис ML Worker (один воркер вместо масштабируемого)
   ml-worker:
     build:
       context: ./services/ml_worker
       dockerfile: Dockerfile
     image: ml-service-worker:1.0
+    container_name: ml-service-worker
     restart: unless-stopped
     env_file:
       - ./services/ml_worker/.env
@@ -81,14 +82,8 @@ services:
         condition: service_healthy
       database:
         condition: service_healthy
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
     environment:
-      - WORKER_ID=ml-worker-{{.Task.Slot}}
+      - WORKER_ID=ml-worker-1
 
   # Сервис RabbitMQ для обмена сообщениями между сервисами
   rabbitmq:
@@ -140,7 +135,7 @@ services:
     container_name: ml-service-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       app:
         condition: service_healthy

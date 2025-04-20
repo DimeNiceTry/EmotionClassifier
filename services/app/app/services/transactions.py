@@ -1,13 +1,15 @@
 """
-Сервис для работы с транзакциями и балансом пользователей.
+Сервис для работы с транзакциями.
 """
 import logging
+import uuid
+from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from ml_service.models.transactions.balance import Balance
-from ml_service.models.transactions.transaction import Transaction
-from ml_service.models.transactions.transaction_types import TransactionType, TransactionStatus
+from ml_service.models.balance import Balance
+from ml_service.models.transaction import Transaction
+from ml_service.models.transaction import TransactionType, TransactionStatus
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

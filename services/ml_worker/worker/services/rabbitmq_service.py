@@ -1,6 +1,7 @@
 """
 Сервис для работы с RabbitMQ.
 """
+import os
 import json
 import logging
 import time

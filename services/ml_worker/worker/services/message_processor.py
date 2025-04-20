@@ -6,12 +6,12 @@ import logging
 from sqlalchemy.orm import Session
 
 from ml_service.models import Prediction
-from services.ml_worker.worker.services.prediction_service import (
+from worker.services.prediction_service import (
     validate_data,
     make_prediction,
     update_prediction_result
 )
-from services.ml_worker.worker.services.rabbitmq_service import publish_result
+from worker.services.rabbitmq_service import publish_result
 
 logger = logging.getLogger(__name__)
 

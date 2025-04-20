@@ -9,9 +9,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 
 from ml_service.models.base import Base
-from ml_service.models.users.user import User
-from ml_service.models.transactions.balance import Balance
-from ml_service.models.transactions.transaction import Transaction
+from ml_service.models.user import User
+from ml_service.models.balance import Balance
+from ml_service.models.transaction import Transaction
 from ml_service.models.prediction import Prediction
 
 # Настраиваем логирование

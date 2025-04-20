@@ -42,7 +42,7 @@ async def make_prediction(
         "user_id": current_user.id,
         "data": request.data
     }
-    if not publish_message(message):
+    if not publish_message(message, settings.ML_TASK_QUEUE):
         # В случае ошибки возвращаем статус об ошибке
         # Примечание: средства уже списаны, в реальном приложении нужно реализовать
         # механизм возврата средств или повторных попыток

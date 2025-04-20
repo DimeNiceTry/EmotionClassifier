@@ -15,23 +15,25 @@ def create_app() -> FastAPI:
     # Настройка CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=["http://localhost:8080"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
     
-    # Импортируем и регистрируем роуты
+    # Импортируем и регистрируем маршруты только из одного места
     from app.api.routes import auth, users, predictions, balance, healthcheck
     
-    app.include_router(auth.router)
-    app.include_router(users.router)
-    app.include_router(predictions.router)
-    app.include_router(balance.router)
+    # Регистрируем маршруты с единым префиксом
+    app.include_router(auth.router, prefix="/api")
+    app.include_router(users.router, prefix="/api")
+    app.include_router(predictions.router, prefix="/api")
+    app.include_router(balance.router, prefix="/api")
     app.include_router(healthcheck.router)
     
-    # События приложения
-    from app.core.events import startup_event
-    app.add_event_handler("startup", startup_event)
+    # Добавляем тестовый маршрут для проверки
+    @app.get("/api/test")
+    async def test_endpoint():
+        return {"status": "ok", "message": "API endpoint is working!"}
     
     return app 

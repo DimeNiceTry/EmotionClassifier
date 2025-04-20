@@ -388,8 +388,14 @@ class App {
      * Загружает историю предсказаний
      */
     async loadPredictionHistory() {
+        // Проверяем, что элемент historyList существует
+        if (!this.historyList) {
+            console.error('Элемент history-list не найден в DOM');
+            return;
+        }
+
         if (!this.auth.isLoggedIn()) {
-            this.predictionHistoryContent.innerHTML = `
+            this.historyList.innerHTML = `
                 <div class="not-authenticated">
                     <p>Для просмотра истории предсказаний необходимо авторизоваться</p>
                     <button class="btn btn-primary" id="login-for-history">Войти</button>
@@ -408,7 +414,7 @@ class App {
             return;
         }
         
-        this.predictionHistoryContent.innerHTML = `
+        this.historyList.innerHTML = `
             <div class="loading">Загрузка истории предсказаний...</div>
         `;
         
@@ -417,7 +423,7 @@ class App {
             const history = await PredictionAPI.getPredictionHistory();
             
             if (!history || !history.predictions || history.predictions.length === 0) {
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="empty-history">
                         <p>У вас пока нет предсказаний</p>
                         <button class="btn btn-primary" id="make-first-prediction">Сделать первое предсказание</button>
@@ -530,7 +536,7 @@ class App {
             
             historyHtml += `</div>`;
             
-            this.predictionHistoryContent.innerHTML = historyHtml;
+            this.historyList.innerHTML = historyHtml;
             
             // Добавляем обработчики для кнопок проверки статуса
             setTimeout(() => {
@@ -575,7 +581,7 @@ class App {
             // Проверяем тип ошибки
             if (error.message && error.message.includes('авторизац')) {
                 // Ошибка авторизации
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="error">
                         <p>Для просмотра истории предсказаний необходимо авторизоваться</p>
                         <button class="btn btn-primary" id="login-for-history-error">Войти</button>
@@ -592,7 +598,7 @@ class App {
                 }, 100);
             } else if (error.message && error.message.includes('Internal Server Error')) {
                 // Внутренняя ошибка сервера
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="error">
                         <p>Ошибка при загрузке истории предсказаний: Внутренняя ошибка сервера</p>
                         <p>Попробуйте обновить страницу через некоторое время.</p>
@@ -610,7 +616,7 @@ class App {
                 }, 100);
             } else {
                 // Другие ошибки
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="error">
                         <p>Ошибка при загрузке истории предсказаний: ${error.message}</p>
                         <button class="btn btn-primary" id="retry-history">Повторить попытку</button>
