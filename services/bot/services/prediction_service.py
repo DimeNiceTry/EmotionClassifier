@@ -5,6 +5,7 @@ import os
 import uuid
 import json
 import logging
+import base64
 from datetime import datetime
 import asyncio
 
@@ -18,13 +19,13 @@ logger = logging.getLogger(__name__)
 # Стоимость предсказания
 PREDICTION_COST = float(os.getenv("PREDICTION_COST", "1.0"))
 
-async def create_prediction(telegram_id, text):
+async def create_prediction(telegram_id, photo_data):
     """
-    Создает новое предсказание.
+    Создает новое предсказание на основе фотографии.
     
     Args:
         telegram_id: ID пользователя в Telegram
-        text: Текст для предсказания
+        photo_data: Данные фотографии в формате base64
         
     Returns:
         str: ID созданного предсказания
@@ -48,7 +49,7 @@ async def create_prediction(telegram_id, text):
         message = {
             "prediction_id": prediction_id,
             "user_id": db_user_id,
-            "data": {"text": text},
+            "data": {"image": photo_data},
             "timestamp": now.isoformat()
         }
         
@@ -76,14 +77,15 @@ async def create_prediction(telegram_id, text):
         )
         session.add(transaction)
         
-        # Создаем запись о предсказании
+        # Создаем запись о предсказании в базе данных
+        # Вместо сохранения всего изображения в базе, сохраняем только метаданные
         cursor.execute(
             """
             INSERT INTO predictions 
             (id, user_id, input_data, status, cost, created_at) 
             VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (prediction_id, db_user_id, json.dumps({"text": text}), "pending", PREDICTION_COST, now)
+            (prediction_id, db_user_id, json.dumps({"image_processed": True}), "pending", PREDICTION_COST, now)
         )
         
         # Отправляем сообщение в очередь
@@ -206,7 +208,7 @@ async def get_user_predictions(telegram_id, limit=5):
                     try:
                         result_data = json.loads(p[2])
                     except json.JSONDecodeError:
-                        result_data = {"prediction": "Error parsing result"}
+                        result_data = {"prediction": "Ошибка при обработке результата"}
                 elif isinstance(p[2], dict):
                     result_data = p[2]
                 else:

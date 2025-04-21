@@ -20,7 +20,7 @@ from handlers import (
     PredictionStates,
     cmd_predict,
     cancel_prediction,
-    process_prediction_text,
+    process_photo,
     cmd_prediction_status, 
     cmd_prediction_history,
     cmd_balance,
@@ -99,8 +99,9 @@ dp.register_message_handler(cmd_prediction_history, commands=['history'])
 
 # Регистрация обработчиков состояний
 dp.register_message_handler(
-    process_prediction_text, 
-    state=PredictionStates.waiting_for_text
+    process_photo, 
+    content_types=types.ContentTypes.PHOTO,
+    state=PredictionStates.waiting_for_photo
 )
 
 dp.register_message_handler(

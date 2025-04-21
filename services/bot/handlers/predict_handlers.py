@@ -1,7 +1,9 @@
 """
-Обработчики команд предсказания.
+Обработчики команд предсказания эмоций по фотографии.
 """
 import logging
+import base64
+import io
 from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
@@ -18,19 +20,20 @@ logger = logging.getLogger(__name__)
 # Определяем состояния для FSM
 class PredictionStates(StatesGroup):
     """Состояния для машины состояний предсказания."""
-    waiting_for_text = State() # Ожидание ввода текста
+    waiting_for_photo = State() # Ожидание загрузки фото
 
 
 async def cmd_predict(message: types.Message):
     """
     Обрабатывает команду /predict.
-    Запрашивает текст для предсказания.
+    Запрашивает фотографию для анализа эмоций.
     """
     await message.reply(
-        "Пожалуйста, введите текст для анализа и предсказания. "
-        "Или отправьте /cancel для отмены."
+        "Пожалуйста, отправьте фотографию лица человека для распознавания эмоций. "
+        "Или отправьте /cancel для отмены.\n\n"
+        "Для наилучших результатов рекомендуется фотография с четким изображением лица."
     )
-    await PredictionStates.waiting_for_text.set()
+    await PredictionStates.waiting_for_photo.set()
 
 
 async def cancel_prediction(message: types.Message, state: FSMContext):
@@ -41,18 +44,32 @@ async def cancel_prediction(message: types.Message, state: FSMContext):
     await message.reply("Предсказание отменено.")
 
 
-async def process_prediction_text(message: types.Message, state: FSMContext):
+async def process_photo(message: types.Message, state: FSMContext):
     """
-    Обрабатывает текст, введенный пользователем для предсказания.
+    Обрабатывает фото, отправленное пользователем для предсказания эмоций.
     """
-    telegram_id = message.from_user.id
-    text = message.text
+    if not message.photo:
+        await message.reply("Пожалуйста, отправьте фотографию. Или используйте /cancel для отмены.")
+        return
     
-    await message.reply("Обрабатываю ваш запрос... ⏳")
+    telegram_id = message.from_user.id
+    
+    # Получаем информацию о фото (выбираем наибольший размер)
+    photo = message.photo[-1]
+    
+    # Загружаем фото
+    await message.reply("Получаю фотографию и подготавливаю анализ... ⏳")
     
     try:
-        # Создаем предсказание, передавая Telegram ID
-        prediction_id = await create_prediction(telegram_id, text)
+        # Скачиваем файл
+        photo_file = await photo.get_file()
+        photo_bytes = await message.bot.download_file(photo_file.file_path)
+        
+        # Конвертируем в base64
+        photo_base64 = base64.b64encode(photo_bytes.getvalue()).decode('utf-8')
+        
+        # Создаем предсказание
+        prediction_id = await create_prediction(telegram_id, photo_base64)
         
         # Сохраняем ID предсказания в состоянии
         await state.update_data(prediction_id=prediction_id)
@@ -61,9 +78,10 @@ async def process_prediction_text(message: types.Message, state: FSMContext):
         await state.finish()
         
         await message.reply(
-            f"Предсказание #{prediction_id} создано!\n\n"
-            "Ваш запрос обрабатывается. Это может занять некоторое время.\n"
-            "Используйте команду /status {prediction_id} для проверки статуса."
+            f"Фотография загружена! Начинаю анализ эмоций.\n\n"
+            f"Предсказание #{prediction_id} создано.\n"
+            f"Ваш запрос обрабатывается. Это может занять некоторое время.\n"
+            f"Используйте команду /status {prediction_id} для проверки статуса."
         )
         
     except ValueError as e:
@@ -72,7 +90,7 @@ async def process_prediction_text(message: types.Message, state: FSMContext):
         
     except Exception as e:
         logger.error(f"Ошибка при создании предсказания: {e}")
-        await message.reply("Произошла ошибка при обработке запроса. Пожалуйста, попробуйте позже.")
+        await message.reply("Произошла ошибка при обработке фотографии. Пожалуйста, попробуйте позже.")
         await state.finish()
 
 
@@ -118,8 +136,18 @@ async def cmd_prediction_status(message: types.Message):
         message_text += f"Стоимость: {prediction['cost']} кредитов\n\n"
         
         if prediction["result"]:
-            message_text += "Результат:\n"
-            message_text += f"{prediction['result']['prediction']}"
+            # Проверяем наличие поля prediction в результате
+            if "prediction" in prediction["result"]:
+                message_text += f"Результат анализа эмоций:\n{prediction['result']['prediction']}\n\n"
+                
+                # Добавляем детали, если они есть
+                if "confidence" in prediction["result"]:
+                    message_text += f"Уверенность: {prediction['result']['confidence'] * 100:.1f}%\n"
+                
+                if "dominant_emotion" in prediction["result"]:
+                    message_text += f"Определенная эмоция: {prediction['result']['translated_emotion']}\n"
+            else:
+                message_text += "Результат: Данные анализа недоступны\n"
         
         await message.reply(message_text)
         
@@ -143,11 +171,11 @@ async def cmd_prediction_history(message: types.Message):
         predictions = await get_user_predictions(telegram_id)
         
         if not predictions:
-            await message.reply("У вас пока нет предсказаний.")
+            await message.reply("У вас пока нет предсказаний эмоций. Используйте /predict, чтобы создать новое.")
             return
         
         # Формируем сообщение с историей
-        message_text = "Ваши последние предсказания:\n\n"
+        message_text = "Ваши последние анализы эмоций:\n\n"
         
         for i, prediction in enumerate(predictions, 1):
             # Определяем статус
@@ -164,6 +192,14 @@ async def cmd_prediction_history(message: types.Message):
             message_text += f"{i}. Предсказание #{prediction['prediction_id']}\n"
             message_text += f"   Статус: {status_text}\n"
             message_text += f"   Создано: {prediction['created_at']}\n"
+            
+            # Если предсказание завершено, добавляем результат
+            if prediction["status"] == "completed" and prediction["result"] and "prediction" in prediction["result"]:
+                result_preview = prediction["result"]["prediction"]
+                if len(result_preview) > 50:
+                    result_preview = result_preview[:50] + "..."
+                message_text += f"   Результат: {result_preview}\n"
+            
             message_text += f"   Стоимость: {prediction['cost']} кредитов\n\n"
         
         message_text += "Используйте команду /status <id> для получения подробной информации."

@@ -11,7 +11,7 @@ from .predict_handlers import (
     PredictionStates,
     cmd_predict,
     cancel_prediction,
-    process_prediction_text,
+    process_photo,
     cmd_prediction_status,
     cmd_prediction_history
 )
@@ -33,7 +33,7 @@ __all__ = [
     "PredictionStates",
     "cmd_predict",
     "cancel_prediction",
-    "process_prediction_text",
+    "process_photo",
     "cmd_prediction_status",
     "cmd_prediction_history",
     
