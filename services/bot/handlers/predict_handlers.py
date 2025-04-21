@@ -6,7 +6,7 @@ from aiogram import types
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from services.bot.services import (
+from services import (
     create_prediction,
     get_prediction_status,
     get_user_predictions
@@ -45,14 +45,14 @@ async def process_prediction_text(message: types.Message, state: FSMContext):
     """
     Обрабатывает текст, введенный пользователем для предсказания.
     """
-    user_id = message.from_user.id
+    telegram_id = message.from_user.id
     text = message.text
     
     await message.reply("Обрабатываю ваш запрос... ⏳")
     
     try:
-        # Создаем предсказание
-        prediction_id = await create_prediction(user_id, text)
+        # Создаем предсказание, передавая Telegram ID
+        prediction_id = await create_prediction(telegram_id, text)
         
         # Сохраняем ID предсказания в состоянии
         await state.update_data(prediction_id=prediction_id)
@@ -136,11 +136,11 @@ async def cmd_prediction_history(message: types.Message):
     Обрабатывает команду /history.
     Показывает историю предсказаний пользователя.
     """
-    user_id = message.from_user.id
+    telegram_id = message.from_user.id
     
     try:
-        # Получаем историю предсказаний пользователя
-        predictions = await get_user_predictions(user_id)
+        # Получаем историю предсказаний пользователя, передавая Telegram ID
+        predictions = await get_user_predictions(telegram_id)
         
         if not predictions:
             await message.reply("У вас пока нет предсказаний.")

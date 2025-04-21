@@ -2,14 +2,16 @@
 Сервисы для Telegram бота.
 """
 
-from services.bot.services.db_service import (
+from .db_service import (
     get_db_connection,
     wait_for_db,
     register_user,
-    get_user_balance
+    get_user_balance,
+    add_user_balance,
+    get_db_user_id
 )
 
-from services.bot.services.rabbitmq_service import (
+from .rabbitmq_service import (
     get_rabbitmq_connection,
     wait_for_rabbitmq, 
     publish_message,
@@ -17,7 +19,7 @@ from services.bot.services.rabbitmq_service import (
     ML_RESULT_QUEUE
 )
 
-from services.bot.services.prediction_service import (
+from .prediction_service import (
     create_prediction,
     get_prediction_status,
     get_user_predictions
@@ -29,6 +31,8 @@ __all__ = [
     "wait_for_db",
     "register_user",
     "get_user_balance",
+    "add_user_balance",
+    "get_db_user_id",
     
     # Сервис RabbitMQ
     "get_rabbitmq_connection",
