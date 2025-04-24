@@ -35,32 +35,28 @@ def get_db():
         db.close()
 
 
-def wait_for_db():
+def wait_for_postgres():
     """
-    Ожидает доступности базы данных.
+    Ожидает доступности PostgreSQL.
     
     Returns:
         bool: True, если подключение успешно, иначе False
     """
     retry_count = 0
-    max_retries = 10
-    connection = None
+    max_retries = 3
     
     while retry_count < max_retries:
         try:
             logger.info(f"Пытаемся подключиться к PostgreSQL (попытка {retry_count + 1}/{max_retries})...")
-            connection = psycopg2.connect(
-                host=DB_HOST,
-                port=DB_PORT,
-                user=DB_USER,
-                password=DB_PASS,
-                # Подключаемся к postgres для проверки доступности
-                dbname="postgres"
-            )
-            logger.info("Подключение к PostgreSQL успешно установлено")
+            
+            # Создаем временное подключение для проверки
+            engine = create_engine(DATABASE_URL)
+            connection = engine.connect()
             connection.close()
+            
+            logger.info("Подключение к PostgreSQL успешно установлено")
             return True
-        except psycopg2.OperationalError as e:
+        except Exception as e:
             logger.warning(f"PostgreSQL недоступен, ошибка: {e}")
             retry_count += 1
             time.sleep(5)
@@ -119,6 +115,6 @@ def init_db():
     Returns:
         bool: True, если инициализация прошла успешно, иначе False
     """
-    if wait_for_db():
+    if wait_for_postgres():
         return create_database()
     return False 

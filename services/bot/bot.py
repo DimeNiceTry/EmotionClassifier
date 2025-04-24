@@ -27,7 +27,8 @@ from handlers import (
     BalanceStates,
     cmd_topup,
     process_topup_amount,
-    cancel_topup
+    cancel_topup,
+    process_prediction_callback
 )
 
 # Настройка логирования
@@ -96,6 +97,9 @@ dp.register_message_handler(cmd_balance, commands=['balance'])
 dp.register_message_handler(cmd_topup, commands=['topup'])
 dp.register_message_handler(cmd_prediction_status, commands=['status'])
 dp.register_message_handler(cmd_prediction_history, commands=['history'])
+
+# Регистрация обработчиков колбэков
+dp.register_callback_query_handler(process_prediction_callback, lambda c: c.data.startswith('prediction:') or c.data == 'refresh_history')
 
 # Регистрация обработчиков состояний
 dp.register_message_handler(

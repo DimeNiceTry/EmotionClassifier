@@ -28,15 +28,28 @@ async function fetchAPI(endpoint, method = 'GET', data = null, auth = true) {
         method,
         headers,
         credentials: 'include',
+        // Устанавливаем таймаут для fetch через AbortController
+        signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : (() => {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 30000);
+            return controller.signal;
+        })()
     };
 
     // Добавляем тело запроса для методов, которые его поддерживают
     if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
-        options.body = JSON.stringify(data);
+        try {
+            options.body = JSON.stringify(data);
+        } catch (error) {
+            console.error('Ошибка при сериализации данных:', error, data);
+            throw new Error('Не удалось преобразовать данные в JSON');
+        }
     }
 
     try {
         console.log(`[API] ${method} ${url}`, options);
+        
+        // Устанавливаем таймаут для запроса
         const response = await fetch(url, options);
         
         // Проверяем, есть ли тело ответа
@@ -86,6 +99,10 @@ async function fetchAPI(endpoint, method = 'GET', data = null, auth = true) {
         console.log(`[API] Текстовый ответ:`, textResponse);
         return textResponse;
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('Превышено время ожидания запроса:', url);
+            throw new Error('Превышено время ожидания ответа от сервера');
+        }
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
             console.error('Ошибка сети при запросе к API:', error);
             throw new Error('Не удалось подключиться к серверу. Проверьте подключение к интернету.');
@@ -190,21 +207,52 @@ const AuthAPI = {
  */
 const PredictionAPI = {
     /**
-     * Создание нового предсказания
-     * @param {string} text - Текст для предсказания
+     * Создание нового предсказания эмоций по изображению
+     * @param {string} imageBase64 - Изображение в формате base64
      * @returns {Promise<Object>} - Информация о предсказании
      */
-    async makePrediction(text) {
-        const data = {
-            data: { text: text.trim() }
-        };
-        console.log('Отправляем данные для предсказания:', data);
+    async makeEmotionPrediction(imageBase64) {
+        if (!imageBase64 || typeof imageBase64 !== 'string') {
+            throw new Error('Не предоставлено изображение для анализа');
+        }
+
+        // Проверка формата данных
+        if (!imageBase64.startsWith('data:image/')) {
+            throw new Error('Некорректный формат данных изображения');
+        }
+        
+        // Обрезаем данные, если они слишком большие (максимум 1MB в base64)
+        const maxBase64Length = 1024 * 1024 * 1.37; // ~1MB после кодирования в base64
+        if (imageBase64.length > maxBase64Length) {
+            console.warn('Изображение слишком большое, масштабируем...');
+            // Вместо обрезки данных рекомендуется уменьшить изображение
+            // с помощью canvas, но для быстрого исправления просто предупредим пользователя
+            alert('Изображение слишком большое. Для лучших результатов загрузите изображение меньшего размера.');
+        }
+        
+        // Отлавливаем ошибки декодирования base64
         try {
+            // Проверяем, можно ли декодировать base64
+            const base64Part = imageBase64.split(',')[1];
+            atob(base64Part);
+        } catch (e) {
+            console.error('Ошибка декодирования base64:', e);
+            throw new Error('Изображение повреждено или имеет некорректный формат');
+        }
+        
+        const data = {
+            data: { image: imageBase64 }
+        };
+        
+        console.log('Отправляем изображение для анализа эмоций');
+        try {
+            // Используем общую функцию fetchAPI вместо собственной реализации
+            // с таймаутом для обеспечения согласованности обработки ошибок
             const result = await fetchAPI('/api/predictions/predict', 'POST', data);
-            console.log('Получен ответ от сервера:', result);
+            console.log('Получен результат предсказания:', result);
             return result;
         } catch (error) {
-            console.error('Ошибка API предсказания:', error);
+            console.error('Ошибка API анализа эмоций:', error);
             throw error;
         }
     },

@@ -40,6 +40,19 @@ def process_message(ch, method, properties, body, worker_id, db):
         user_id = data["user_id"]
         input_data = data["data"]
         
+        # Дополнительная проверка на отсутствие текстового предсказания
+        if isinstance(input_data, dict) and "text" in input_data:
+            logger.error(f"Обнаружена попытка текстового предсказания для {prediction_id}. Обработка отменена.")
+            error_result = {
+                "error": "Текстовые предсказания отключены",
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "worker_id": worker_id
+            }
+            update_prediction_result(db, prediction_id, error_result, worker_id)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+            return
+        
         # Добавляем время начала обработки
         processing_start = datetime.now()
         logger.info(f"Начало анализа эмоций для предсказания {prediction_id}")

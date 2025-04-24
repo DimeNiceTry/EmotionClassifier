@@ -8,8 +8,8 @@ from typing import List
 from app.db.database import get_db
 from app.core.auth import get_current_user
 from app.models.user import User
-from app.models.transaction import Transaction
-from app.schemas.transaction import TransactionResponse
+from ml_service.models.transaction import Transaction
+from app.schemas.transactions import TransactionResponse
 
 # Устанавливаем путь для маршрута
 router = APIRouter(prefix="/transactions", tags=["transactions"])

@@ -144,11 +144,28 @@ async def get_prediction_status(prediction_id):
         if not prediction:
             raise ValueError(f"Предсказание {prediction_id} не найдено")
         
+        # Обрабатываем поле result корректно, проверяя его тип и формат
+        result_data = None
+        if prediction[2]:
+            try:
+                # Если это строка JSON, пробуем распарсить
+                if isinstance(prediction[2], str):
+                    result_data = json.loads(prediction[2])
+                # Если это уже словарь, используем как есть
+                elif isinstance(prediction[2], dict):
+                    result_data = prediction[2]
+                else:
+                    # Для других типов данных создаем словарь с текстовым представлением
+                    result_data = {"prediction": str(prediction[2])}
+            except json.JSONDecodeError as e:
+                logger.error(f"Ошибка декодирования JSON для предсказания {prediction_id}: {e}")
+                result_data = {"prediction": "Ошибка при обработке результата", "error": str(e)}
+        
         # Формируем ответ
         result = {
             "prediction_id": prediction[0],
             "status": prediction[1],
-            "result": json.loads(prediction[2]) if prediction[2] else None,
+            "result": result_data,
             "created_at": prediction[3],
             "completed_at": prediction[4],
             "cost": float(prediction[5])
@@ -201,18 +218,22 @@ async def get_user_predictions(telegram_id, limit=5):
         # Формируем результат
         result = []
         for p in predictions:
-            # Обрабатываем поле result корректно, проверяя его тип
+            # Обрабатываем поле result корректно, проверяя его тип и формат
             result_data = None
             if p[2]:
-                if isinstance(p[2], str):
-                    try:
+                try:
+                    # Если это строка JSON, пробуем распарсить
+                    if isinstance(p[2], str):
                         result_data = json.loads(p[2])
-                    except json.JSONDecodeError:
-                        result_data = {"prediction": "Ошибка при обработке результата"}
-                elif isinstance(p[2], dict):
-                    result_data = p[2]
-                else:
-                    result_data = {"prediction": str(p[2])}
+                    # Если это уже словарь, используем как есть
+                    elif isinstance(p[2], dict):
+                        result_data = p[2]
+                    else:
+                        # Для других типов данных создаем словарь с текстовым представлением
+                        result_data = {"prediction": str(p[2])}
+                except json.JSONDecodeError as e:
+                    logger.error(f"Ошибка декодирования JSON для предсказания {p[0]}: {e}")
+                    result_data = {"prediction": "Ошибка при обработке результата", "error": str(e)}
             
             result.append({
                 "prediction_id": p[0],

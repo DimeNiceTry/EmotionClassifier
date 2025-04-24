@@ -97,18 +97,81 @@ def update_prediction_result(
     Returns:
         Обновленный объект предсказания или None
     """
-    prediction = get_prediction_by_id(db, prediction_id)
-    if not prediction:
-        return None
+    try:
+        prediction = get_prediction_by_id(db, prediction_id)
+        if not prediction:
+            logger.error(f"Предсказание {prediction_id} не найдено")
+            return None
+            
+        prediction.result = result
         
-    prediction.result = result
-    prediction.status = "completed"
-    prediction.completed_at = datetime.utcnow()
-    prediction.processed_by = worker_id
-    
-    db.commit()
-    db.refresh(prediction)
-    return prediction
+        # Проверяем, если result содержит статус, используем его
+        original_status = prediction.status
+        need_status_update = False
+        
+        # Проверка по критериям возврата кредитов
+        is_failed = False
+        
+        # Критерий 1: Статус предсказания равен failed или error
+        if "status" in result and result["status"] in ["failed", "error"]:
+            is_failed = True
+            logger.info(f"Статус {result['status']} в результате для предсказания {prediction_id}")
+            
+        # Критерий 2: В результате присутствует поле error
+        elif "error" in result:
+            is_failed = True
+            logger.info(f"Предсказание {prediction_id} содержит ошибку: {result.get('error')}")
+            
+        # Критерий 3: Количество обнаруженных лиц равно 0
+        elif result.get("faces_count", 0) == 0:
+            is_failed = True
+            logger.info(f"Предсказание {prediction_id} с нулевым количеством лиц")
+            
+        # Критерий 4: Проверка текстового сообщения о ненайденных лицах
+        elif any(phrase in str(result.get("prediction", "")).lower() for phrase in 
+                ["лица не обнаружены", "лицо не обнаружено", "no face detected", "face not found", "no faces found"]):
+            is_failed = True
+            logger.info(f"Предсказание {prediction_id} содержит сообщение о ненайденных лицах")
+            
+        # Критерий 5: Отсутствие информации об эмоциях при завершённом статусе
+        elif "status" in result and result["status"] == "completed" and not result.get("emotions") and not result.get("dominant_emotion"):
+            is_failed = True
+            logger.info(f"Предсказание {prediction_id} без информации об эмоциях при статусе completed")
+        
+        # Флаг refund_credits для совместимости
+        elif result.get("refund_credits", False):
+            is_failed = True
+            logger.info(f"Предсказание {prediction_id} имеет флаг refund_credits")
+        
+        # Устанавливаем статус
+        if is_failed:
+            prediction.status = "failed"
+            need_status_update = True
+            logger.info(f"Установлен статус 'failed' для предсказания {prediction_id} (был {original_status})")
+        # Если нет критериев для failed и статус pending, устанавливаем completed
+        elif prediction.status == "pending":
+            prediction.status = "completed"
+            need_status_update = True
+            logger.info(f"Установлен статус 'completed' по умолчанию для предсказания {prediction_id} (был {original_status})")
+        
+        prediction.completed_at = datetime.utcnow()
+        prediction.processed_by = worker_id
+        
+        # Фиксируем изменения в базе данных
+        db.commit()
+        db.refresh(prediction)
+        
+        # Проверяем, корректно ли обновился статус
+        if need_status_update and prediction.status != original_status:
+            logger.info(f"Статус успешно обновлен с {original_status} на {prediction.status}")
+        else:
+            logger.warning(f"Обновление статуса не произошло: было {original_status}, осталось {prediction.status}")
+        
+        return prediction
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении результата предсказания: {e}")
+        db.rollback()
+        return None
 
 
 def get_prediction(db: Session, prediction_id: str, user_id: str):

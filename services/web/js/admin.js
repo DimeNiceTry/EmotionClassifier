@@ -280,7 +280,9 @@ class AdminPanel {
                         <p><strong>Email:</strong> ${user.email || 'Не указан'}</p>
                         <p><strong>Баланс:</strong> ${user.balance.toFixed(2)} кредитов</p>
                         <p><strong>Роль:</strong> ${user.is_admin ? 'Администратор' : 'Пользователь'}</p>
-                        <p><strong>Дата регистрации:</strong> ${new Date(user.created_at).toLocaleString()}</p>
+                        <p><strong>Дата регистрации:</strong> ${new Date(user.created_at).toLocaleString('ru-RU', {
+                            timeZone: 'Europe/Moscow'
+                        })}</p>
                     </div>
                 `;
                 
@@ -296,7 +298,9 @@ class AdminPanel {
                         <li>
                             ${transaction.type === 'deposit' ? 'Пополнение' : 'Списание'}: 
                             ${transaction.amount.toFixed(2)} кредитов - 
-                            ${new Date(transaction.created_at).toLocaleString()}
+                            ${new Date(transaction.created_at).toLocaleString('ru-RU', {
+                                timeZone: 'Europe/Moscow'
+                            })}
                             ${transaction.comment ? ` - ${transaction.comment}` : ''}
                         </li>
                     `;
@@ -318,7 +322,9 @@ class AdminPanel {
                 user.predictions.forEach(prediction => {
                     html += `
                         <li>
-                            ${new Date(prediction.created_at).toLocaleString()} - 
+                            ${new Date(prediction.created_at).toLocaleString('ru-RU', {
+                                timeZone: 'Europe/Moscow'
+                            })} - 
                             ${prediction.status === 'success' ? 'Успешно' : prediction.status === 'pending' ? 'В обработке' : 'Ошибка'}
                             ${prediction.cost ? ` - Стоимость: ${prediction.cost.toFixed(2)} кредитов` : ''}
                         </li>
@@ -436,7 +442,9 @@ class AdminPanel {
                 <div class="admin-list-item">
                     <h4>
                         ${transaction.type === 'deposit' ? 'Пополнение' : 'Списание'}: ${transaction.amount.toFixed(2)} кредитов
-                        <span>${new Date(transaction.created_at).toLocaleString()}</span>
+                        <span>${new Date(transaction.created_at).toLocaleString('ru-RU', {
+                            timeZone: 'Europe/Moscow'
+                        })}</span>
                     </h4>
                     <p>Пользователь: ${transaction.username || transaction.user_id}</p>
                     ${transaction.comment ? `<p>Комментарий: ${transaction.comment}</p>` : ''}
@@ -489,7 +497,9 @@ class AdminPanel {
                         <span class="status ${statusClass}">${statusText}</span>
                     </h4>
                     <p>Пользователь: ${prediction.username || prediction.user_id}</p>
-                    <p>Дата: ${new Date(prediction.created_at).toLocaleString()}</p>
+                    <p>Дата: ${new Date(prediction.created_at).toLocaleString('ru-RU', {
+                        timeZone: 'Europe/Moscow'
+                    })}</p>
                     ${prediction.cost ? `<p>Стоимость: ${prediction.cost.toFixed(2)} кредитов</p>` : ''}
                     ${prediction.input_data ? `<p>Входные данные: ${JSON.stringify(prediction.input_data)}</p>` : ''}
                     ${prediction.result ? `<p>Результат: ${JSON.stringify(prediction.result)}</p>` : ''}

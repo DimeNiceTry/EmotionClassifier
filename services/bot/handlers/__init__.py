@@ -13,7 +13,8 @@ from .predict_handlers import (
     cancel_prediction,
     process_photo,
     cmd_prediction_status,
-    cmd_prediction_history
+    cmd_prediction_history,
+    process_prediction_callback
 )
 
 from .balance_handlers import (
@@ -36,6 +37,7 @@ __all__ = [
     "process_photo",
     "cmd_prediction_status",
     "cmd_prediction_history",
+    "process_prediction_callback",
     
     # Обработчики баланса
     "cmd_balance",

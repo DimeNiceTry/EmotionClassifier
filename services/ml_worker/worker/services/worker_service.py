@@ -12,6 +12,7 @@ from ml_service.db_config import SessionLocal
 from ml_service.models import Prediction
 from worker.services.message_processor import process_message
 from worker.services.rabbitmq_service import wait_for_rabbitmq
+from worker.services.db_service import wait_for_postgres
 
 # Настройки RabbitMQ
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
@@ -25,32 +26,6 @@ ML_TASK_QUEUE = "ml_tasks"
 WORKER_ID = os.getenv("WORKER_ID", f"worker-{socket.gethostname()}-{os.getpid()}")
 
 logger = logging.getLogger(__name__)
-
-def wait_for_db():
-    """
-    Ожидает доступности базы данных.
-    
-    Returns:
-        bool: True, если подключение установлено успешно
-    """
-    retry_count = 0
-    max_retries = 10
-    
-    while retry_count < max_retries:
-        try:
-            db = SessionLocal()
-            # Пробуем выполнить простой запрос
-            db.query(Prediction).first()
-            db.close()
-            logger.info("Подключение к базе данных успешно установлено")
-            return True
-        except Exception as e:
-            logger.warning(f"База данных недоступна, ошибка: {e}")
-            retry_count += 1
-            time.sleep(5)
-    
-    logger.error("Не удалось подключиться к базе данных после нескольких попыток")
-    return False
 
 def create_message_processor(worker_id):
     """
@@ -76,7 +51,7 @@ def run_worker():
     Запускает воркера для обработки сообщений из очереди.
     """
     # Ожидаем доступности базы данных
-    if not wait_for_db():
+    if not wait_for_postgres():
         logger.error("Не удалось подключиться к базе данных")
         return False
         
@@ -123,4 +98,36 @@ def run_worker():
     except Exception as e:
         logger.error(f"Произошла ошибка: {e}")
     
+    return False 
+
+def wait_for_services():
+    """
+    Ожидает доступности всех необходимых сервисов.
+    
+    Returns:
+        bool: True, если все сервисы доступны, иначе False
+    """
+    retry_count = 0
+    max_retries = 3
+    
+    while retry_count < max_retries:
+        try:
+            logger.info(f"Пытаемся подключиться к сервисам (попытка {retry_count + 1}/{max_retries})...")
+            
+            # Проверяем подключение к RabbitMQ
+            if not wait_for_rabbitmq():
+                raise Exception("RabbitMQ недоступен")
+            
+            # Проверяем подключение к БД
+            if not wait_for_postgres():
+                raise Exception("База данных недоступна")
+            
+            logger.info("Подключение ко всем сервисам успешно установлено")
+            return True
+        except Exception as e:
+            logger.warning(f"Не все сервисы доступны, ошибка: {e}")
+            retry_count += 1
+            time.sleep(5)
+    
+    logger.error("Не удалось подключиться ко всем сервисам после нескольких попыток")
     return False 

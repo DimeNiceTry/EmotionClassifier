@@ -33,34 +33,69 @@ async def make_prediction(
             detail="Недостаточно средств на балансе"
         )
     
-    # Создаем запись о предсказании
-    prediction = create_prediction(db, current_user.id, request.data, cost)
-    
-    # Отправляем задачу в очередь
-    message = {
-        "prediction_id": prediction.id,
-        "user_id": current_user.id,
-        "data": request.data
-    }
-    if not publish_message(message, settings.ML_TASK_QUEUE):
-        # В случае ошибки возвращаем статус об ошибке
-        # Примечание: средства уже списаны, в реальном приложении нужно реализовать
-        # механизм возврата средств или повторных попыток
-        prediction.status = "error"
-        db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Ошибка при отправке задачи в очередь"
+    try:
+        # Создаем запись о предсказании
+        prediction = create_prediction(db, current_user.id, request.data, cost)
+        
+        # Отправляем задачу в очередь
+        message = {
+            "prediction_id": prediction.id,
+            "user_id": current_user.id,
+            "data": request.data
+        }
+        if not publish_message(message, settings.ML_TASK_QUEUE):
+            # В случае ошибки отправки в очередь
+            prediction.status = "failed"
+            db.commit()
+            
+            # Возвращаем средства пользователю
+            from app.services.transactions import add_to_balance
+            add_to_balance(
+                db, 
+                current_user.id, 
+                cost, 
+                f"Возврат средств за предсказание {prediction.id} (ошибка отправки в очередь)",
+                prediction.id
+            )
+            
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Ошибка при отправке задачи в очередь"
+            )
+        
+        return PredictionResponse(
+            prediction_id=prediction.id,
+            status=prediction.status,
+            result=prediction.result,
+            created_at=prediction.created_at,
+            completed_at=prediction.completed_at,
+            cost=prediction.cost
         )
-    
-    return PredictionResponse(
-        prediction_id=prediction.id,
-        status=prediction.status,
-        result=prediction.result,
-        created_at=prediction.created_at,
-        completed_at=prediction.completed_at,
-        cost=prediction.cost
-    )
+    except Exception as e:
+        # В случае любой другой ошибки, пытаемся вернуть средства
+        from app.services.transactions import add_to_balance
+        try:
+            add_to_balance(
+                db, 
+                current_user.id, 
+                cost, 
+                f"Возврат средств из-за ошибки создания предсказания: {str(e)}",
+                None
+            )
+        except Exception as refund_error:
+            # Если не удалось вернуть средства, логируем ошибку
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Ошибка при возврате средств: {refund_error}")
+        
+        # Прокидываем исходную ошибку дальше
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Ошибка при создании предсказания: {str(e)}"
+            )
 
 @router.get("/{prediction_id}", response_model=PredictionResponse)
 async def get_prediction(

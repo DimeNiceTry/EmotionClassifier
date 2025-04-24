@@ -4,10 +4,19 @@
 import logging
 from aiogram import types
 from aiogram.dispatcher import FSMContext
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from services.db_service import register_user
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
+
+# Создаем клавиатуру с кнопками команд
+def get_main_keyboard():
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    keyboard.add(KeyboardButton('/predict'))
+    keyboard.add(KeyboardButton('/balance'), KeyboardButton('/topup'))
+    keyboard.add(KeyboardButton('/history'), KeyboardButton('/help'))
+    return keyboard
 
 async def send_welcome(message: types.Message):
     """
@@ -21,6 +30,9 @@ async def send_welcome(message: types.Message):
         user_id = await register_user(message.from_user.id, message.from_user.username or "user")
         logger.info(f"Пользователь {message.from_user.id} успешно зарегистрирован, ID в БД: {user_id}")
         
+        # Создаем клавиатуру с кнопками команд
+        keyboard = get_main_keyboard()
+        
         await message.reply(
             f"Привет, {message.from_user.first_name}! 👋\n\n"
             "Я бот для демонстрации ML сервиса. С моей помощью ты можешь отправлять запросы "
@@ -31,7 +43,8 @@ async def send_welcome(message: types.Message):
             "/topup - пополнить баланс\n"
             "/history - история предсказаний\n"
             "/help - показать это сообщение\n\n"
-            "Для начала работы используй команду /predict и отправь мне текст для анализа."
+            "Для начала работы нажми на кнопку /predict и отправь мне фото для анализа эмоций.",
+            reply_markup=keyboard
         )
         logger.info(f"Отправлено приветственное сообщение пользователю {message.from_user.id}")
     
@@ -52,9 +65,12 @@ async def handle_text(message: types.Message):
     logger.info(f"Получено текстовое сообщение от пользователя {message.from_user.id}")
     
     try:
+        keyboard = get_main_keyboard()
+        
         await message.reply(
             "Я получил твое сообщение, но не знаю, что с ним делать.\n"
-            "Используй команду /predict для создания нового предсказания."
+            "Используй кнопки внизу или команду /predict для создания нового предсказания.",
+            reply_markup=keyboard
         )
         logger.info(f"Отправлен ответ на текстовое сообщение пользователю {message.from_user.id}")
     

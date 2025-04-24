@@ -6,38 +6,38 @@ import time
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.orm import Session
+from sqlalchemy import create_engine
 
 from app.core.config import settings
 from app.db.session import SessionLocal, engine
 from ml_service.models import Base, User, Balance
+from worker.config.settings import DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME
 
 logger = logging.getLogger(__name__)
 
 def wait_for_db():
     """
-    Ожидает доступности базы данных.
+    Ожидает доступности PostgreSQL.
     
     Returns:
-        bool: True, если подключение установлено успешно
+        bool: True, если подключение успешно, иначе False
     """
     retry_count = 0
-    max_retries = 10
+    max_retries = 3
     
     while retry_count < max_retries:
         try:
             logger.info(f"Пытаемся подключиться к PostgreSQL (попытка {retry_count + 1}/{max_retries})...")
-            connection = psycopg2.connect(
-                host=settings.DB_HOST,
-                port=settings.DB_PORT,
-                user=settings.DB_USER,
-                password=settings.DB_PASS,
-                # Подключаемся к postgres для проверки доступности
-                dbname="postgres"
-            )
-            logger.info("Подключение к PostgreSQL успешно установлено")
+            
+            # Используем константы для создания строки подключения
+            db_url = f"postgresql://{settings.DB_USER}:{settings.DB_PASS}@{settings.DB_HOST}:{settings.DB_PORT}/postgres"
+            engine = create_engine(db_url)
+            connection = engine.connect()
             connection.close()
+            
+            logger.info("Подключение к PostgreSQL успешно установлено")
             return True
-        except psycopg2.OperationalError as e:
+        except Exception as e:
             logger.warning(f"PostgreSQL недоступен, ошибка: {e}")
             retry_count += 1
             time.sleep(5)

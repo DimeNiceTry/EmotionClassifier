@@ -31,6 +31,8 @@ class Transaction(Base):
     status = Column(String(20), default=TransactionStatus.PENDING.value, nullable=False)
     created_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime, nullable=True)
+    description = Column(String(255), nullable=True)  # Описание транзакции
+    related_entity_id = Column(String(50), nullable=True)  # ID связанной сущности (например, предсказания)
     
     # Отношение к пользователю
     user = relationship("User", back_populates="transactions")
