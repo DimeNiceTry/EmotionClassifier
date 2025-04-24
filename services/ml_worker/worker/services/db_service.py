@@ -8,32 +8,36 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
+from ml_service.db_config import SessionLocal
+from worker.config.settings import DB_HOST, DB_PORT, DB_USER, DB_PASS, DB_NAME
 
 from ml_service.models.predictions import Prediction
-from ml_service.db_config import SessionLocal
 
 logger = logging.getLogger(__name__)
 
-def wait_for_db():
+def wait_for_postgres():
     """
-    Ожидает доступности базы данных, используя ORM.
+    Ожидает доступности PostgreSQL.
     
     Returns:
-        bool: True если подключение успешно, False в случае ошибки
+        bool: True, если подключение успешно, иначе False
     """
     retry_count = 0
-    max_retries = 10
+    max_retries = 3
     
     while retry_count < max_retries:
         try:
             logger.info(f"Пытаемся подключиться к БД (попытка {retry_count + 1}/{max_retries})...")
-            db = SessionLocal()
-            # Проверяем соединение простым запросом
-            db.execute("SELECT 1")
-            db.close()
+            
+            # Создаем строку подключения из констант
+            db_url = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/postgres"
+            engine = create_engine(db_url)
+            connection = engine.connect()
+            connection.close()
+            
             logger.info("Подключение к БД успешно установлено")
             return True
-        except OperationalError as e:
+        except Exception as e:
             logger.warning(f"БД недоступна, ошибка: {e}")
             retry_count += 1
             time.sleep(5)
@@ -63,7 +67,15 @@ def update_prediction_result(db: Session, prediction_id: str, result: dict, work
             return False
         
         # Обновляем данные предсказания
-        prediction.status = "completed"
+        # Проверяем, если result содержит статус, используем его
+        if "status" in result and result["status"] in ["completed", "failed"]:
+            prediction.status = result["status"]
+            logger.info(f"Установлен статус {result['status']} из результата для предсказания {prediction_id}")
+        else:
+            # Иначе используем статус по умолчанию - completed
+            prediction.status = "completed"
+            logger.info(f"Установлен статус 'completed' по умолчанию для предсказания {prediction_id}")
+            
         prediction.result = result
         prediction.worker_id = worker_id
         prediction.completed_at = datetime.now()

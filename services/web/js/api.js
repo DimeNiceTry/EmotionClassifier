@@ -1,5 +1,5 @@
 // API URL
-const API_URL = '';
+const API_URL = 'http://localhost:8000';
 
 /**
  * Выполняет HTTP запрос к API
@@ -28,15 +28,28 @@ async function fetchAPI(endpoint, method = 'GET', data = null, auth = true) {
         method,
         headers,
         credentials: 'include',
+        // Устанавливаем таймаут для fetch через AbortController
+        signal: AbortSignal.timeout ? AbortSignal.timeout(30000) : (() => {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), 30000);
+            return controller.signal;
+        })()
     };
 
     // Добавляем тело запроса для методов, которые его поддерживают
     if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
-        options.body = JSON.stringify(data);
+        try {
+            options.body = JSON.stringify(data);
+        } catch (error) {
+            console.error('Ошибка при сериализации данных:', error, data);
+            throw new Error('Не удалось преобразовать данные в JSON');
+        }
     }
 
     try {
         console.log(`[API] ${method} ${url}`, options);
+        
+        // Устанавливаем таймаут для запроса
         const response = await fetch(url, options);
         
         // Проверяем, есть ли тело ответа
@@ -86,6 +99,10 @@ async function fetchAPI(endpoint, method = 'GET', data = null, auth = true) {
         console.log(`[API] Текстовый ответ:`, textResponse);
         return textResponse;
     } catch (error) {
+        if (error.name === 'AbortError') {
+            console.error('Превышено время ожидания запроса:', url);
+            throw new Error('Превышено время ожидания ответа от сервера');
+        }
         if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
             console.error('Ошибка сети при запросе к API:', error);
             throw new Error('Не удалось подключиться к серверу. Проверьте подключение к интернету.');
@@ -112,7 +129,7 @@ const AuthAPI = {
         formData.append('password', password);
 
         try {
-            const response = await fetch(`${API_URL}/token`, {
+            const response = await fetch(`${API_URL}/api/token`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
@@ -167,7 +184,13 @@ const AuthAPI = {
             data.email = email;
         }
 
-        return await fetchAPI('/users', 'POST', data, false);
+        // Попробуем сначала один путь, а если не сработает, то другой
+        try {
+            return await fetchAPI('/api/register', 'POST', data, false);
+        } catch (error) {
+            console.log('Попытка регистрации через альтернативный путь...');
+            return await fetchAPI('/api/users', 'POST', data, false);
+        }
     },
 
     /**
@@ -175,7 +198,7 @@ const AuthAPI = {
      * @returns {Promise<Object>} - Информация о пользователе
      */
     async getCurrentUser() {
-        return await fetchAPI('/users/me', 'GET');
+        return await fetchAPI('/api/users/me', 'GET');
     }
 };
 
@@ -184,21 +207,52 @@ const AuthAPI = {
  */
 const PredictionAPI = {
     /**
-     * Создание нового предсказания
-     * @param {string} text - Текст для предсказания
+     * Создание нового предсказания эмоций по изображению
+     * @param {string} imageBase64 - Изображение в формате base64
      * @returns {Promise<Object>} - Информация о предсказании
      */
-    async makePrediction(text) {
-        const data = {
-            data: { text: text.trim() }
-        };
-        console.log('Отправляем данные для предсказания:', data);
+    async makeEmotionPrediction(imageBase64) {
+        if (!imageBase64 || typeof imageBase64 !== 'string') {
+            throw new Error('Не предоставлено изображение для анализа');
+        }
+
+        // Проверка формата данных
+        if (!imageBase64.startsWith('data:image/')) {
+            throw new Error('Некорректный формат данных изображения');
+        }
+        
+        // Обрезаем данные, если они слишком большие (максимум 1MB в base64)
+        const maxBase64Length = 1024 * 1024 * 1.37; // ~1MB после кодирования в base64
+        if (imageBase64.length > maxBase64Length) {
+            console.warn('Изображение слишком большое, масштабируем...');
+            // Вместо обрезки данных рекомендуется уменьшить изображение
+            // с помощью canvas, но для быстрого исправления просто предупредим пользователя
+            alert('Изображение слишком большое. Для лучших результатов загрузите изображение меньшего размера.');
+        }
+        
+        // Отлавливаем ошибки декодирования base64
         try {
-            const result = await fetchAPI('/predictions/predict', 'POST', data);
-            console.log('Получен ответ от сервера:', result);
+            // Проверяем, можно ли декодировать base64
+            const base64Part = imageBase64.split(',')[1];
+            atob(base64Part);
+        } catch (e) {
+            console.error('Ошибка декодирования base64:', e);
+            throw new Error('Изображение повреждено или имеет некорректный формат');
+        }
+        
+        const data = {
+            data: { image: imageBase64 }
+        };
+        
+        console.log('Отправляем изображение для анализа эмоций');
+        try {
+            // Используем общую функцию fetchAPI вместо собственной реализации
+            // с таймаутом для обеспечения согласованности обработки ошибок
+            const result = await fetchAPI('/api/predictions/predict', 'POST', data);
+            console.log('Получен результат предсказания:', result);
             return result;
         } catch (error) {
-            console.error('Ошибка API предсказания:', error);
+            console.error('Ошибка API анализа эмоций:', error);
             throw error;
         }
     },
@@ -220,7 +274,7 @@ const PredictionAPI = {
         while (retries < maxRetries) {
             try {
                 console.log(`Запрос статуса предсказания ${id} (попытка ${retries + 1}/${maxRetries})`);
-                const result = await fetchAPI(`/predictions/${id}`, 'GET');
+                const result = await fetchAPI(`/api/predictions/${id}`, 'GET');
                 console.log(`Получен статус предсказания ${id}:`, result);
                 return result;
             } catch (error) {
@@ -251,8 +305,8 @@ const PredictionAPI = {
         while (retries < maxRetries) {
             try {
                 console.log(`Запрос истории предсказаний (попытка ${retries + 1}/${maxRetries})`);
-                const result = await fetchAPI('/predictions', 'GET');
-                console.log(`Получена история предсказаний:`, result);
+                const result = await fetchAPI('/api/predictions/', 'GET');
+                console.log('История предсказаний:', result);
                 return result;
             } catch (error) {
                 retries++;
@@ -280,7 +334,7 @@ const BalanceAPI = {
      * @returns {Promise<Object>} - Текущий баланс
      */
     async getBalance() {
-        return await fetchAPI('/balance', 'GET');
+        return await fetchAPI('/api/balance/', 'GET');
     },
     
     /**
@@ -290,6 +344,6 @@ const BalanceAPI = {
      */
     async topUpBalance(amount) {
         const data = { amount: parseFloat(amount) };
-        return await fetchAPI('/balance/topup', 'POST', data);
+        return await fetchAPI('/api/balance/topup', 'POST', data);
     }
-}; 
+};

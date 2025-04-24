@@ -2,10 +2,10 @@
 Маршруты для работы с транзакциями и балансом пользователя.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from services.app.app.models.user import User
-from services.app.app.models.transaction import BalanceTopUpRequest, BalanceTopUpResponse, BalanceResponse
-from services.app.app.services.auth_service import get_current_user
-from services.app.app.services.transaction_service import get_balance, top_up_balance, get_user_transactions
+from app.models.user import User
+from app.models.transaction import BalanceTopUpRequest, BalanceTopUpResponse, BalanceResponse
+from app.services.auth_service import get_current_user
+from app.services.transaction_service import get_balance, top_up_balance, get_user_transactions
 from datetime import datetime
 
 # Настройка роутера

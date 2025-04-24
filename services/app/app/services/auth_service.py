@@ -9,8 +9,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from services.app.app.services.db_service import get_db_connection
-from services.app.app.models.user import TokenData, User, UserInDB
+from app.services.db_service import get_db_connection
+from app.models.user import TokenData, User, UserInDB
 
 # Настройка логирования
 logger = logging.getLogger(__name__)

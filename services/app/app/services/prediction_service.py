@@ -9,8 +9,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from ml_service.db_config import SessionLocal
-from services.app.app.services.rabbitmq_service import publish_message, ML_TASK_QUEUE
-from services.app.app.services.transaction_service import deduct_from_balance, deduct_from_balance_orm
+from app.services.rabbitmq_service import publish_message, ML_TASK_QUEUE
+from app.services.transaction_service import deduct_from_balance, deduct_from_balance_orm
 from ml_service.models.prediction import Prediction
 
 # Настройка логирования

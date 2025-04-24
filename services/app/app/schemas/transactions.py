@@ -25,4 +25,18 @@ class BalanceTopUpResponse(BaseModel):
     """Ответ на запрос пополнения баланса"""
     previous_balance: float
     current_balance: float
-    transaction_id: str 
+    transaction_id: str
+
+
+class TransactionResponse(BaseModel):
+    """Модель ответа для транзакции"""
+    id: int
+    user_id: int
+    amount: float
+    type: str
+    status: str
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True 

@@ -9,6 +9,9 @@ from psycopg2.extras import RealDictCursor
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from sqlalchemy.orm import Session
 from ml_service.db_config import SessionLocal
+from sqlalchemy import create_engine
+from sqlalchemy.exc import OperationalError
+from app.core.config import settings
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
@@ -50,33 +53,34 @@ def get_db():
     finally:
         db.close()
 
-def wait_for_db():
+def wait_for_postgres():
     """
-    Ожидает доступности базы данных.
+    Ожидает доступности PostgreSQL.
     
     Returns:
-        bool: True если подключение успешно, False в случае ошибки
+        bool: True, если подключение успешно, иначе False
     """
     retry_count = 0
-    max_retries = 10
-    connection = None
+    max_retries = 3
     
     while retry_count < max_retries:
         try:
             logger.info(f"Пытаемся подключиться к PostgreSQL (попытка {retry_count + 1}/{max_retries})...")
-            connection = psycopg2.connect(
-                host=DB_HOST,
-                port=DB_PORT,
-                user=DB_USER,
-                password=DB_PASS,
-                # Подключаемся к postgres для проверки доступности
-                dbname="postgres"
-            )
-            logger.info("Подключение к PostgreSQL успешно установлено")
+            
+            # Создаем тестовое подключение
+            db_url = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/postgres"
+            engine = create_engine(db_url)
+            connection = engine.connect()
             connection.close()
+            
+            logger.info("Подключение к PostgreSQL успешно установлено")
             return True
-        except psycopg2.OperationalError as e:
+        except OperationalError as e:
             logger.warning(f"PostgreSQL недоступен, ошибка: {e}")
+            retry_count += 1
+            time.sleep(5)
+        except Exception as e:
+            logger.error(f"Неожиданная ошибка при подключении к PostgreSQL: {e}")
             retry_count += 1
             time.sleep(5)
     
@@ -198,7 +202,7 @@ def init_db():
     """
     Инициализирует базу данных.
     """
-    if not wait_for_db():
+    if not wait_for_postgres():
         return False
     
     if not create_database():

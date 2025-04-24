@@ -42,10 +42,10 @@ def wait_for_rabbitmq():
     Ожидает доступности RabbitMQ.
     
     Returns:
-        bool: True если подключение успешно, False в случае ошибки
+        bool: True, если подключение успешно, иначе False
     """
     retry_count = 0
-    max_retries = 10
+    max_retries = 3
     
     while retry_count < max_retries:
         try:

@@ -4,10 +4,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from services.app.app.models.user import User, UserCreate, Token
-from services.app.app.services.auth_service import get_current_user, create_access_token
-from services.app.app.services.user_service import create_user
-from services.app.app.services.auth_service import authenticate_user
+from app.models.user import User, UserCreate, Token
+from app.services.auth_service import get_current_user, create_access_token
+from app.services.user_service import create_user
+from app.services.auth_service import authenticate_user
 from datetime import timedelta
 
 # Настройка роутера

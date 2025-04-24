@@ -36,18 +36,18 @@
             <section id="home-section" class="section active">
                 <div class="welcome-message">
                     <h2>Добро пожаловать в ML Сервис</h2>
-                    <p>Наш сервис предоставляет доступ к ML-моделям через удобный интерфейс</p>
+                    <p>Наш сервис поможет вам определить эмоции на фотографии</p>
                     <div class="features">
                         <div class="feature">
-                            <h3>Машинное обучение</h3>
-                            <p>Доступ к предобученным моделям для различных задач</p>
+                            <h3>ML Модель</h3>
+                            <p>Используется модель из библиотеки DeepFace</p>
                         </div>
                         <div class="feature">
                             <h3>Быстрая обработка</h3>
-                            <p>Быстрое выполнение предсказаний через очереди сообщений</p>
+                            <p>Шустрый сервер и быстрая модель</p>
                         </div>
                         <div class="feature">
-                            <h3>История предсказаний</h3>
+                            <h3>Удобный интерфейс</h3>
                             <p>Сохранение и удобный доступ к истории ваших предсказаний</p>
                         </div>
                     </div>
@@ -56,13 +56,25 @@
 
             <!-- Секция предсказания -->
             <section id="predict-section" class="section">
-                <h2>Сделать предсказание</h2>
+                <h2>Анализ эмоций на фото</h2>
                 <div class="card">
-                    <form id="prediction-form">
-                        <div class="form-group">
-                            <label for="prediction-text">Введите текст для предсказания:</label>
-                            <textarea id="prediction-text" rows="6" placeholder="Введите текст для анализа..."></textarea>
+                    <form id="prediction-form" enctype="multipart/form-data">
+                        <div id="emotion-prediction-container" class="form-group">
+                            <label for="prediction-image">Загрузите фотографию для анализа эмоций:</label>
+                            <div class="image-upload-container">
+                                <input type="file" id="prediction-image" name="prediction-image" accept="image/*" class="hidden" />
+                                <div id="image-preview-container" class="image-preview-empty">
+                                    <img id="image-preview" src="" alt="" class="hidden" />
+                                    <div id="image-placeholder">
+                                        <i class="fas fa-camera"></i>
+                                        <p>Нажмите для выбора фото</p>
+                                    </div>
+                                </div>
+                                <button type="button" id="select-image-btn" class="btn">Выбрать фото</button>
+                                <button type="button" id="remove-image-btn" class="btn hidden">Удалить фото</button>
+                            </div>
                         </div>
+                        
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary">Отправить</button>
                             <div class="cost-info">
@@ -72,7 +84,7 @@
                     </form>
                 </div>
                 <div id="prediction-result" class="hidden card">
-                    <h3>Результат предсказания</h3>
+                    <h3>Результат анализа</h3>
                     <div id="result-content"></div>
                 </div>
             </section>

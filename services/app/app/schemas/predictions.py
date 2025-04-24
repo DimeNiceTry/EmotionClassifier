@@ -2,13 +2,27 @@
 Pydantic схемы для предсказаний.
 """
 from typing import Dict, Any, Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from datetime import datetime
 
 
 class PredictionRequest(BaseModel):
     """Схема запроса на предсказание."""
     data: Dict[str, Any]
+    
+    @validator('data')
+    def validate_input_data(cls, v):
+        """Проверяет, что в данных есть изображение и нет текста."""
+        if not isinstance(v, dict):
+            raise ValueError("Данные должны быть словарем")
+            
+        if "image" not in v:
+            raise ValueError("В данных отсутствует изображение для анализа")
+            
+        if "text" in v:
+            raise ValueError("Текстовые предсказания отключены")
+            
+        return v
 
 
 class PredictionResponse(BaseModel):

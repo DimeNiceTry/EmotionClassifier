@@ -10,7 +10,7 @@ import socket
 # Добавление корневого каталога в sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from services.ml_worker.worker.services.worker_service import run_worker, WORKER_ID
+from worker.services.worker_service import run_worker, WORKER_ID
 
 # Настройка логирования
 logging.basicConfig(

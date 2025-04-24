@@ -2,22 +2,27 @@
 Обработчики команд Telegram бота.
 """
 
-from services.bot.handlers.common_handlers import (
+from .common_handlers import (
     send_welcome,
     handle_text
 )
 
-from services.bot.handlers.predict_handlers import (
+from .predict_handlers import (
     PredictionStates,
     cmd_predict,
     cancel_prediction,
-    process_prediction_text,
+    process_photo,
     cmd_prediction_status,
-    cmd_prediction_history
+    cmd_prediction_history,
+    process_prediction_callback
 )
 
-from services.bot.handlers.balance_handlers import (
-    cmd_balance
+from .balance_handlers import (
+    cmd_balance,
+    BalanceStates,
+    cmd_topup,
+    process_topup_amount,
+    cancel_topup
 )
 
 __all__ = [
@@ -29,10 +34,15 @@ __all__ = [
     "PredictionStates",
     "cmd_predict",
     "cancel_prediction",
-    "process_prediction_text",
+    "process_photo",
     "cmd_prediction_status",
     "cmd_prediction_history",
+    "process_prediction_callback",
     
     # Обработчики баланса
-    "cmd_balance"
+    "cmd_balance",
+    "BalanceStates",
+    "cmd_topup",
+    "process_topup_amount",
+    "cancel_topup"
 ] 

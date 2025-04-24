@@ -82,7 +82,16 @@ def update_prediction_result(
         
         # Обновляем запись
         prediction.result = result
-        prediction.status = "completed"
+        
+        # Проверяем, если result содержит статус, используем его
+        if "status" in result and result["status"] in ["completed", "failed"]:
+            prediction.status = result["status"]
+            logger.info(f"Установлен статус {result['status']} из результата для предсказания {prediction_id}")
+        else:
+            # Иначе используем статус по умолчанию - completed
+            prediction.status = "completed"
+            logger.info(f"Установлен статус 'completed' по умолчанию для предсказания {prediction_id}")
+        
         prediction.completed_at = datetime.utcnow()
         prediction.processed_by = worker_id
         

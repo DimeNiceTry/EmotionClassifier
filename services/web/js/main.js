@@ -12,11 +12,21 @@ class App {
         
         // Формы и элементы для предсказаний
         this.predictionForm = document.getElementById('prediction-form');
-        this.predictionText = document.getElementById('prediction-text');
         this.predictionResult = document.getElementById('prediction-result');
         this.resultContent = document.getElementById('result-content');
         this.historyList = document.getElementById('history-list');
         this.currentBalance = document.getElementById('current-balance');
+        
+        // Элементы для работы с изображениями
+        this.emotionPredictionContainer = document.getElementById('emotion-prediction-container');
+        this.predictionImage = document.getElementById('prediction-image');
+        this.imagePreview = document.getElementById('image-preview');
+        this.imagePreviewContainer = document.getElementById('image-preview-container');
+        this.selectImageBtn = document.getElementById('select-image-btn');
+        this.removeImageBtn = document.getElementById('remove-image-btn');
+        
+        // Переменная для хранения загруженного изображения
+        this.uploadedImage = null;
         
         // Элементы для пополнения баланса
         this.topupForm = document.getElementById('topup-form');
@@ -25,6 +35,13 @@ class App {
         this.topupError = document.getElementById('topup-error');
         this.previousBalance = document.getElementById('previous-balance');
         this.newBalance = document.getElementById('new-balance');
+        
+        // Предварительно связываем обработчики событий с контекстом this
+        this.handlePredictionBound = this.handlePrediction.bind(this);
+        this.handleImageUploadBound = this.handleImageUpload.bind(this);
+        this.handleImageRemoveBound = this.handleImageRemove.bind(this);
+        this.handleTopUpBound = this.handleTopUp.bind(this);
+        this.handleNavigationBound = this.handleNavigation.bind(this);
         
         // Привязываем обработчики событий
         this.bindEvents();
@@ -45,14 +62,164 @@ class App {
     bindEvents() {
         // Навигация
         this.navLinks.forEach(link => {
-            link.addEventListener('click', this.handleNavigation.bind(this));
+            link.addEventListener('click', this.handleNavigationBound);
         });
         
         // Обработка формы предсказания
-        this.predictionForm.addEventListener('submit', this.handlePrediction.bind(this));
+        if (this.predictionForm) {
+            console.log('Привязываем обработчик к форме предсказания');
+            this.predictionForm.addEventListener('submit', this.handlePredictionBound);
+        } else {
+            console.error('Элемент формы предсказания не найден в DOM!');
+        }
+        
+        // Обработка загрузки изображения
+        if (this.predictionImage) {
+            this.predictionImage.addEventListener('change', this.handleImageUploadBound);
+        }
+        
+        // Обработка кнопки выбора изображения
+        if (this.selectImageBtn) {
+            this.selectImageBtn.addEventListener('click', () => {
+                this.predictionImage.click();
+            });
+        }
+        
+        // Обработка кнопки удаления изображения
+        if (this.removeImageBtn) {
+            this.removeImageBtn.addEventListener('click', this.handleImageRemoveBound);
+        }
+        
+        // Обработка клика по контейнеру для превью
+        if (this.imagePreviewContainer) {
+            this.imagePreviewContainer.addEventListener('click', () => {
+                this.predictionImage.click();
+            });
+        }
         
         // Обработка формы пополнения баланса
-        this.topupForm.addEventListener('submit', this.handleTopUp.bind(this));
+        if (this.topupForm) {
+            this.topupForm.addEventListener('submit', this.handleTopUpBound);
+        }
+    }
+    
+    /**
+     * Обработчик загрузки изображения
+     */
+    handleImageUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // Проверяем формат файла
+        if (!file.type.startsWith('image/')) {
+            alert('Пожалуйста, загрузите файл изображения (JPEG, PNG, GIF и т.д.)');
+            return;
+        }
+        
+        // Ограничение размера файла (5 МБ)
+        const maxSize = 5 * 1024 * 1024; // 5 МБ в байтах
+        if (file.size > maxSize) {
+            alert('Файл слишком большой. Максимальный размер - 5 МБ. Будет выполнено автоматическое уменьшение размера.');
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                // Изменяем размер изображения, если оно слишком большое
+                if (file.size > 1024 * 1024) { // Если больше 1 МБ
+                    this.uploadedImage = this.resizeImage(img, 800); // Ограничиваем максимальную ширину до 800px
+                } else {
+                    this.uploadedImage = e.target.result;
+                }
+                
+                console.log('Изображение загружено успешно. Длина данных:', this.uploadedImage.length);
+                
+                // Показываем превью
+                this.imagePreview.src = this.uploadedImage;
+                this.imagePreview.classList.remove('hidden');
+                this.imagePreviewContainer.classList.remove('image-preview-empty');
+                
+                // Скрываем плейсхолдер
+                const placeholder = document.getElementById('image-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                // Показываем кнопку удаления
+                this.removeImageBtn.classList.remove('hidden');
+            };
+            
+            img.onerror = () => {
+                alert('Не удалось загрузить изображение. Пожалуйста, попробуйте другой файл.');
+            };
+            
+            img.src = e.target.result;
+        };
+        
+        reader.onerror = (error) => {
+            console.error('Ошибка при чтении файла:', error);
+            alert('Произошла ошибка при чтении файла. Пожалуйста, попробуйте другое изображение.');
+        };
+        
+        reader.readAsDataURL(file);
+    }
+    
+    /**
+     * Изменяет размер изображения
+     * @param {HTMLImageElement} img - Исходное изображение
+     * @param {number} maxWidth - Максимальная ширина
+     * @returns {string} - Изображение в формате base64
+     */
+    resizeImage(img, maxWidth) {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Вычисляем новые размеры, сохраняя пропорции
+        if (width > maxWidth) {
+            height = Math.round(height * maxWidth / width);
+            width = maxWidth;
+        }
+        
+        // Устанавливаем размеры canvas
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Отрисовываем изображение на canvas
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Получаем данные в формате base64
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85); // 85% качества
+        
+        console.log(`Изображение изменено с ${img.width}x${img.height} на ${width}x${height}`);
+        
+        return dataUrl;
+    }
+    
+    /**
+     * Обработчик удаления изображения
+     */
+    handleImageRemove() {
+        // Очищаем загруженное изображение
+        this.uploadedImage = null;
+        this.predictionImage.value = '';
+        
+        // Скрываем превью
+        this.imagePreview.src = '';
+        this.imagePreview.classList.add('hidden');
+        this.imagePreviewContainer.classList.add('image-preview-empty');
+        
+        // Показываем плейсхолдер
+        const placeholder = document.getElementById('image-placeholder');
+        if (placeholder) {
+            placeholder.style.display = 'flex';
+        }
+        
+        // Скрываем кнопку удаления
+        this.removeImageBtn.classList.add('hidden');
     }
     
     /**
@@ -99,29 +266,57 @@ class App {
      */
     async handlePrediction(event) {
         event.preventDefault();
+        console.log('Форма предсказания отправлена');
         
         if (!this.auth.isLoggedIn()) {
+            console.log('Пользователь не авторизован. Показываем окно входа.');
             this.auth.showLoginModal();
             return;
         }
         
-        const text = this.predictionText.value.trim();
-        
-        if (!text) {
-            alert('Пожалуйста, введите текст для предсказания');
+        try {
+            console.log('Начинаем обработку предсказания эмоций');
+            await this.handleEmotionPrediction();
+        } catch (error) {
+            console.error('Необработанная ошибка при предсказании:', error);
+            this.handlePredictionError(error);
+        }
+    }
+    
+    /**
+     * Обработка предсказания эмоций по изображению
+     */
+    async handleEmotionPrediction() {
+        if (!this.uploadedImage) {
+            console.warn('Изображение не загружено');
+            alert('Пожалуйста, загрузите изображение для анализа эмоций');
             return;
         }
         
+        console.log('Изображение загружено, размер данных:', this.uploadedImage.length);
+        
         // Показываем индикатор загрузки
-        this.resultContent.innerHTML = '<div class="loading">Выполняем предсказание...</div>';
+        this.resultContent.innerHTML = '<div class="loading">Анализируем эмоции на фото...</div>';
         this.predictionResult.classList.remove('hidden');
         
         try {
-            // Отправляем запрос на предсказание
-            console.log('Отправка текста для предсказания:', text);
-            const prediction = await PredictionAPI.makePrediction(text);
+            // Проверяем, достаточно ли длинная строка base64
+            if (this.uploadedImage.length < 100) {
+                throw new Error('Изображение повреждено или слишком маленькое');
+            }
             
-            console.log('Результат запроса предсказания:', prediction);
+            console.log('Отправка изображения для анализа эмоций. Размер данных:', this.uploadedImage.length);
+            
+            // Проверяем, что изображение начинается с 'data:image/'
+            if (!this.uploadedImage.startsWith('data:image/')) {
+                throw new Error('Неверный формат данных изображения');
+            }
+            
+            // Отправляем запрос на предсказание эмоций
+            console.log('Вызываем API для предсказания эмоций...');
+            const prediction = await PredictionAPI.makeEmotionPrediction(this.uploadedImage);
+            
+            console.log('Результат запроса анализа эмоций:', prediction);
             
             if (!prediction || !prediction.prediction_id) {
                 throw new Error('Не получен идентификатор предсказания от сервера');
@@ -142,43 +337,63 @@ class App {
                 this.displayPredictionResult(prediction);
                 // Обновляем баланс
                 this.loadBalance();
+                
+                // Если результат содержит информацию о "Лица не обнаружены" или статус failed,
+                // делаем дополнительный запрос баланса через секунду, чтобы увидеть обновленное значение
+                if (prediction.status === 'failed' || 
+                    (prediction.result && 
+                     ((typeof prediction.result === 'object' && prediction.result.prediction && prediction.result.prediction.includes('Лица не обнаружены')) ||
+                      (typeof prediction.result === 'string' && prediction.result.includes('Лица не обнаружены'))))) {
+                    console.log('Возможен возврат средств, запланировано дополнительное обновление баланса через 1 секунду');
+                    setTimeout(() => this.loadBalance(), 1000);
+                }
+                
+                return;
             }
         } catch (error) {
-            console.error('Ошибка при выполнении предсказания:', error);
+            console.error('Ошибка при обработке предсказания:', error);
+            this.handlePredictionError(error);
+        }
+    }
+    
+    /**
+     * Обработка ошибок предсказания
+     */
+    handlePredictionError(error) {
+        console.error('Ошибка при выполнении предсказания:', error);
+        
+        if (error.message && (error.message.includes('баланс') || error.message.includes('средств'))) {
+            // Ошибка связана с балансом
+            this.resultContent.innerHTML = `
+                <div class="error">
+                    <p>Недостаточно средств на балансе для выполнения предсказания.</p>
+                    <p>Пожалуйста, пополните баланс в разделе "Баланс".</p>
+                    <button class="btn btn-primary" id="go-to-balance">Перейти к пополнению</button>
+                </div>
+            `;
             
-            if (error.message && (error.message.includes('баланс') || error.message.includes('средств'))) {
-                // Ошибка связана с балансом
-                this.resultContent.innerHTML = `
-                    <div class="error">
-                        <p>Недостаточно средств на балансе для выполнения предсказания.</p>
-                        <p>Пожалуйста, пополните баланс в разделе "Баланс".</p>
-                        <button class="btn btn-primary" id="go-to-balance">Перейти к пополнению</button>
-                    </div>
-                `;
-                
-                // Добавляем обработчик для кнопки
-                setTimeout(() => {
-                    const balanceBtn = document.getElementById('go-to-balance');
-                    if (balanceBtn) {
-                        balanceBtn.addEventListener('click', () => {
-                            document.getElementById('nav-balance').click();
-                        });
-                    }
-                }, 100);
-            } else if (error.message && error.message.includes('Internal Server Error')) {
-                this.resultContent.innerHTML = `
-                    <div class="error">
-                        <p>Сервер временно недоступен. Пожалуйста, повторите попытку позже.</p>
-                        <p>Если проблема сохраняется, обратитесь в службу поддержки.</p>
-                    </div>
-                `;
-            } else {
-                this.resultContent.innerHTML = `
-                    <div class="error">
-                        <p>Ошибка при выполнении предсказания: ${error.message}</p>
-                    </div>
-                `;
-            }
+            // Добавляем обработчик для кнопки
+            setTimeout(() => {
+                const balanceBtn = document.getElementById('go-to-balance');
+                if (balanceBtn) {
+                    balanceBtn.addEventListener('click', () => {
+                        document.getElementById('nav-balance').click();
+                    });
+                }
+            }, 100);
+        } else if (error.message && error.message.includes('Internal Server Error')) {
+            this.resultContent.innerHTML = `
+                <div class="error">
+                    <p>Сервер временно недоступен. Пожалуйста, повторите попытку позже.</p>
+                    <p>Если проблема сохраняется, обратитесь в службу поддержки.</p>
+                </div>
+            `;
+        } else {
+            this.resultContent.innerHTML = `
+                <div class="error">
+                    <p>Ошибка при выполнении анализа: ${error.message}</p>
+                </div>
+            `;
         }
     }
     
@@ -210,6 +425,17 @@ class App {
                 this.displayPredictionResult(prediction);
                 // Обновляем баланс
                 this.loadBalance();
+                
+                // Если результат содержит информацию о "Лица не обнаружены" или статус failed,
+                // делаем дополнительный запрос баланса через секунду, чтобы увидеть обновленное значение
+                if (prediction.status === 'failed' || 
+                    (prediction.result && 
+                     ((typeof prediction.result === 'object' && prediction.result.prediction && prediction.result.prediction.includes('Лица не обнаружены')) ||
+                      (typeof prediction.result === 'string' && prediction.result.includes('Лица не обнаружены'))))) {
+                    console.log('Возможен возврат средств, запланировано дополнительное обновление баланса через 1 секунду');
+                    setTimeout(() => this.loadBalance(), 1000);
+                }
+                
                 return;
             }
             
@@ -321,64 +547,23 @@ class App {
             statusText = 'Ошибка';
         }
         
-        // Форматируем дату
-        let timestamp = 'Неизвестно';
-        try {
-            if (prediction.timestamp) {
-                timestamp = new Date(prediction.timestamp).toLocaleString('ru-RU');
-            }
-        } catch (e) {
-            console.error('Ошибка форматирования даты:', e, prediction);
-        }
-        
         // Отображаем результат
         let resultHtml = `
             <div class="prediction-meta">
                 <span>ID: ${prediction.prediction_id || 'N/A'}</span>
                 <span class="${statusClass}">${statusText}</span>
                 <span>Стоимость: ${prediction.cost || '1.0'} кредитов</span>
-                <span>Дата: ${timestamp}</span>
             </div>
         `;
         
-        try {
-            if (prediction.status === 'completed' && prediction.result) {
-                // Форматируем результат в зависимости от типа данных
-                let resultText = '';
-                
-                if (typeof prediction.result === 'object') {
-                    resultText = `<pre>${JSON.stringify(prediction.result, null, 2)}</pre>`;
-                } else {
-                    resultText = prediction.result;
-                }
-                
-                resultHtml += `
-                    <div class="prediction-content">
-                        <h4>Результат:</h4>
-                        ${resultText}
-                    </div>
-                `;
-            } else if (prediction.status === 'failed') {
-                resultHtml += `
-                    <div class="prediction-content error">
-                        <p>Не удалось выполнить предсказание. Пожалуйста, попробуйте еще раз.</p>
-                    </div>
-                `;
-            } else {
-                resultHtml += `
-                    <div class="prediction-content">
-                        <p>Предсказание в процессе обработки. Пожалуйста, подождите.</p>
-                        <div class="loading">Обработка...</div>
-                    </div>
-                `;
+        // Проверяем на наличие текста "Лица не обнаружены" в результате
+        if (prediction.status === 'completed' && prediction.result) {
+            const resultData = typeof prediction.result === 'object' ? prediction.result : {};
+            const predictionText = resultData.prediction || '';
+            
+            if (predictionText.includes('Лица не обнаружены')) {
+                resultHtml += `<p class="refund-notice">Кредиты были возвращены на баланс</p>`;
             }
-        } catch (e) {
-            console.error('Ошибка при форматировании результата предсказания:', e, prediction);
-            resultHtml += `
-                <div class="prediction-content error">
-                    <p>Произошла ошибка при отображении результата. Детали в консоли.</p>
-                </div>
-            `;
         }
         
         this.resultContent.innerHTML = resultHtml;
@@ -388,8 +573,14 @@ class App {
      * Загружает историю предсказаний
      */
     async loadPredictionHistory() {
+        // Проверяем, что элемент historyList существует
+        if (!this.historyList) {
+            console.error('Элемент history-list не найден в DOM');
+            return;
+        }
+
         if (!this.auth.isLoggedIn()) {
-            this.predictionHistoryContent.innerHTML = `
+            this.historyList.innerHTML = `
                 <div class="not-authenticated">
                     <p>Для просмотра истории предсказаний необходимо авторизоваться</p>
                     <button class="btn btn-primary" id="login-for-history">Войти</button>
@@ -408,7 +599,7 @@ class App {
             return;
         }
         
-        this.predictionHistoryContent.innerHTML = `
+        this.historyList.innerHTML = `
             <div class="loading">Загрузка истории предсказаний...</div>
         `;
         
@@ -417,7 +608,7 @@ class App {
             const history = await PredictionAPI.getPredictionHistory();
             
             if (!history || !history.predictions || history.predictions.length === 0) {
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="empty-history">
                         <p>У вас пока нет предсказаний</p>
                         <button class="btn btn-primary" id="make-first-prediction">Сделать первое предсказание</button>
@@ -456,22 +647,14 @@ class App {
                     statusText = 'Ошибка';
                 }
                 
-                // Форматируем дату
-                let timestamp = 'Неизвестно';
-                try {
-                    if (prediction.timestamp) {
-                        timestamp = new Date(prediction.timestamp).toLocaleString('ru-RU');
-                    }
-                } catch (e) {
-                    console.error('Ошибка форматирования даты:', e, prediction);
-                }
-                
                 // Формируем результат
                 let resultHtml = '';
                 if (prediction.status === 'completed' && prediction.result) {
                     try {
                         if (prediction.result.prediction && prediction.result.confidence) {
-                            const confidence = (prediction.result.confidence * 100).toFixed(1);
+                            // Ограничиваем уверенность до 100%
+                            const rawConfidence = prediction.result.confidence * 100;
+                            const confidence = Math.min(rawConfidence, 100).toFixed(1);
                             resultHtml = `
                                 <div class="prediction-result">
                                     <p>Результат: <strong>${prediction.result.prediction}</strong></p>
@@ -510,6 +693,7 @@ class App {
                     resultHtml = `
                         <div class="prediction-result error">
                             <p>Не удалось выполнить предсказание</p>
+                            <p class="refund-notice">Кредиты были возвращены на баланс</p>
                         </div>
                     `;
                 }
@@ -519,7 +703,6 @@ class App {
                     <div class="prediction-item">
                         <div class="prediction-header">
                             <span class="prediction-id">ID: ${prediction.prediction_id}</span>
-                            <span class="prediction-date">${timestamp}</span>
                             <span class="prediction-status ${statusClass}">${statusText}</span>
                             <span class="prediction-cost">Стоимость: ${prediction.cost} кредитов</span>
                         </div>
@@ -530,7 +713,7 @@ class App {
             
             historyHtml += `</div>`;
             
-            this.predictionHistoryContent.innerHTML = historyHtml;
+            this.historyList.innerHTML = historyHtml;
             
             // Добавляем обработчики для кнопок проверки статуса
             setTimeout(() => {
@@ -575,7 +758,7 @@ class App {
             // Проверяем тип ошибки
             if (error.message && error.message.includes('авторизац')) {
                 // Ошибка авторизации
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="error">
                         <p>Для просмотра истории предсказаний необходимо авторизоваться</p>
                         <button class="btn btn-primary" id="login-for-history-error">Войти</button>
@@ -592,7 +775,7 @@ class App {
                 }, 100);
             } else if (error.message && error.message.includes('Internal Server Error')) {
                 // Внутренняя ошибка сервера
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="error">
                         <p>Ошибка при загрузке истории предсказаний: Внутренняя ошибка сервера</p>
                         <p>Попробуйте обновить страницу через некоторое время.</p>
@@ -610,7 +793,7 @@ class App {
                 }, 100);
             } else {
                 // Другие ошибки
-                this.predictionHistoryContent.innerHTML = `
+                this.historyList.innerHTML = `
                     <div class="error">
                         <p>Ошибка при загрузке истории предсказаний: ${error.message}</p>
                         <button class="btn btn-primary" id="retry-history">Повторить попытку</button>

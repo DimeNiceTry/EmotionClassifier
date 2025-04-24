@@ -2,10 +2,10 @@
 Маршруты для предсказаний.
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from services.app.app.models.user import User
-from services.app.app.models.prediction import PredictionRequest, PredictionResponse, PredictionHistory
-from services.app.app.services.auth_service import get_current_user
-from services.app.app.services.prediction_service import create_prediction, get_prediction, get_user_predictions
+from app.models.user import User
+from app.models.prediction import PredictionRequest, PredictionResponse, PredictionHistory
+from app.services.auth_service import get_current_user
+from app.services.prediction_service import create_prediction, get_prediction, get_user_predictions
 
 # Настройка роутера
 router = APIRouter(tags=["predictions"])

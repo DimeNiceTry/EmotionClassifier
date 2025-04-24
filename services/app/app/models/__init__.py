@@ -1,13 +1,13 @@
 """
 Модели Pydantic для API.
 """
-from services.app.app.models.user import (
+from app.models.user import (
     Token, TokenData, User, UserInDB, UserCreate
 )
-from services.app.app.models.prediction import (
+from app.models.prediction import (
     PredictionRequest, PredictionResponse, PredictionHistory
 )
-from services.app.app.models.transaction import (
+from app.models.transaction import (
     BalanceTopUpRequest, BalanceTopUpResponse, BalanceResponse
 )
 
@@ -21,7 +21,7 @@ __all__ = [
 Импорт ORM-моделей из общей библиотеки.
 """
 # Импортируем модели из ml_service для использования в приложении
-from ml_service.models.users.user import User
-from ml_service.models.transactions.balance import Balance
-from ml_service.models.transactions.transaction import Transaction
-from ml_service.models.transactions.transaction_types import TransactionType, TransactionStatus 
+from ml_service.models.user import User
+from ml_service.models.balance import Balance
+from ml_service.models.transaction import Transaction
+from ml_service.models import TransactionType, TransactionStatus 
